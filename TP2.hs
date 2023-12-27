@@ -45,7 +45,8 @@ run (inst:code, stack, state) = case inst of
     "tt" -> run (c1 ++ code, pop stack, state)
     "ff" -> run (c2 ++ code, pop stack, state)
     _    -> error "Run-time error: Invalid operand for branch"
-  Loop c1 c2 -> run (c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]], stack, state)
+  Loop c1 c2 -> run (c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]] ++ code, stack, state)
+
 
 performAdd :: Stack -> Stack
 performAdd stack =
@@ -129,6 +130,7 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]] == ("","fact=3628800,i=1")
 -- testAssembler [Push 1, Push 2, Tru, Branch [Sub, Tru] [Add, Fals], Store "x"] == ("1","x=True")
 -- testAssembler [Push 1, Push 2, Fals, Branch [Sub, Tru] [Add, Fals], Store "x"] == ("3","x=False")
+-- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"], Tru] == ("True","fact=3628800,i=1")
 -- If you test:
 -- testAssembler [Push 1,Push 2,And]
 -- You should get an exception with the string: "Run-time error"
