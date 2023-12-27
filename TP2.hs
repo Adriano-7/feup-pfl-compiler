@@ -2,7 +2,8 @@
 -- Updated on 15/12/2023
 
 -- Part 1
-import Stack (Stack, push, pop, top, empty, fromList, isEmpty)
+import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
+import State (State, newState, insert, load, fromList, toStr)
 -- Do not modify our definition of Inst and Code
 data Inst =
   Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
@@ -11,7 +12,7 @@ data Inst =
 type Code = [Inst]
 
 createEmptyStack :: Stack
-createEmptyStack = Stack.empty
+createEmptyStack = newStack
 
 stack2Str :: Stack -> String
 stack2Str s | isEmpty s = ""
@@ -20,11 +21,11 @@ stack2Str s | isEmpty s = ""
             | otherwise = top s ++ middle ++ stack2Str (pop s)
             where middle = if isEmpty (pop s) then "" else ","
 
--- createEmptyState :: State
-createEmptyState = undefined -- TODO, Uncomment the function signature after defining State
+createEmptyState :: State
+createEmptyState = newState
 
--- state2Str :: State -> String
-state2Str = undefined -- TODO
+state2Str :: State -> String
+state2Str = toStr --igual a state2Str s = toStr s
 
 -- run :: (Code, Stack, State) -> (Code, Stack, State)
 run = undefined -- TODO

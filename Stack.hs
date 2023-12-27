@@ -1,6 +1,6 @@
 module Stack (Stack,
               push, pop, top,
-              empty, fromList,
+              newStack, fromList,
               isEmpty) where
 
 newtype Stack = Stk [String] deriving Show
@@ -16,8 +16,8 @@ top :: Stack -> String
 top (Stk []) = error "Empty stack"
 top (Stk (x:_)) = x
 
-empty :: Stack
-empty = Stk []
+newStack :: Stack
+newStack = Stk []
 
 fromList :: [String] -> Stack
 fromList = Stk --igual a fromList xs = Stk xs
@@ -25,4 +25,3 @@ fromList = Stk --igual a fromList xs = Stk xs
 isEmpty :: Stack -> Bool
 isEmpty (Stk []) = True
 isEmpty (Stk _) = False
-
