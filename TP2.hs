@@ -37,15 +37,15 @@ run (inst:code, stack, state) = case inst of
   Push n -> run (code, push (show n) stack, state)
   Add -> run (code, performAdd stack, state)
   Mult -> run (code, performMult stack, state)
-  --Sub -> run (code, performSub stack, state)
-  --Tru -> run (code, push "tt" stack, state)
-  --Fals -> run (code, push "ff" stack, state)
-  --Equ -> run (code, performEqu stack, state)
-  --Le -> run (code, performLe stack, state)
   --And -> run (code, performAnd stack, state)
+  Sub -> run (code, performSub stack, state)
+  Tru -> run (code, push "tt" stack, state)
+  Fals -> run (code, push "ff" stack, state)
+  Equ -> run (code, performEqu stack, state)
+  Le -> run (code, performLe stack, state)
   --Neg -> run (code, performNeg stack, state)
-  --Fetch var -> run (code, push (load var state) stack, state)
-  --Store var -> run (code, pop (insert var (top stack) state), state)
+  Fetch var -> run (code, push (load var state) stack, state)
+  Store var -> run (code, pop stack, insert var (top stack) state)
   --Noop -> run (code, stack, state)
   
 
@@ -68,6 +68,32 @@ performMult stack =
       "tt" -> error "Run-time error"
       "ff" -> error "Run-time error"
       val2 -> push (show (read val1 * read val2)) (pop (pop stack))
+
+performSub :: Stack -> Stack
+performSub stack =
+  case top stack of
+    "tt" -> error "Run-time error"
+    "ff" -> error "Run-time error"
+    val1 -> case top (pop stack) of
+      "tt" -> error "Run-time error"
+      "ff" -> error "Run-time error"
+      val2 -> push (show (read val1 - read val2)) (pop (pop stack))
+
+performEqu :: Stack -> Stack
+performEqu stack =
+  case top stack of
+    val1 -> case top (pop stack) of
+      val2 -> if val1 == val2 then push "tt" (pop (pop stack)) else push "ff" (pop (pop stack))
+
+performLe :: Stack -> Stack
+performLe stack =
+  case top stack of
+    "tt" -> error "Run-time error"
+    "ff" -> error "Run-time error"
+    val1 -> case top (pop stack) of
+      "tt" -> error "Run-time error"
+      "ff" -> error "Run-time error"
+      val2 -> if (read val1 :: Int) <= (read val2 :: Int) then push "tt" (pop (pop stack)) else push "ff" (pop (pop stack))
 
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
