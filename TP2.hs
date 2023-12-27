@@ -14,7 +14,11 @@ createEmptyStack :: Stack
 createEmptyStack = Stack.empty
 
 stack2Str :: Stack -> String
-stack2Str s = undefined -- TODO
+stack2Str s | isEmpty s = ""
+            | top s == "tt" = "True" ++ middle ++ stack2Str (pop s)
+            | top s == "ff" = "False" ++ middle ++ stack2Str (pop s)
+            | otherwise = top s ++ middle ++ stack2Str (pop s)
+            where middle = if isEmpty (pop s) then "" else ","
 
 -- createEmptyState :: State
 createEmptyState = undefined -- TODO, Uncomment the function signature after defining State

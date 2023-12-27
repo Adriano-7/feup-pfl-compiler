@@ -3,26 +3,26 @@ module Stack (Stack,
               empty, fromList,
               isEmpty) where
 
-data Stack a = Stk [a] deriving Show
+newtype Stack = Stk [String] deriving Show
 
-push :: a -> Stack a -> Stack a
+push :: String -> Stack -> Stack
 push x (Stk xs) = Stk (x:xs)
 
-pop :: Stack a -> Stack a
+pop :: Stack -> Stack
 pop (Stk []) = error "Empty stack"
 pop (Stk (_:xs)) = Stk xs
 
-top :: Stack a -> a
+top :: Stack -> String
 top (Stk []) = error "Empty stack"
 top (Stk (x:_)) = x
 
-empty :: Stack a
+empty :: Stack
 empty = Stk []
 
-fromList :: [a] -> Stack a
+fromList :: [String] -> Stack
 fromList = Stk --igual a fromList xs = Stk xs
 
-isEmpty :: Stack a -> Bool
+isEmpty :: Stack -> Bool
 isEmpty (Stk []) = True
 isEmpty (Stk _) = False
 
