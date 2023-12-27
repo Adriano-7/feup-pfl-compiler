@@ -15,11 +15,11 @@ createEmptyStack :: Stack
 createEmptyStack = newStack
 
 stack2Str :: Stack -> String
-stack2Str s | Stack.isEmpty s = ""
+stack2Str s | isEmpty s = ""
             | top s == "tt" = "True" ++ middle ++ stack2Str (pop s)
             | top s == "ff" = "False" ++ middle ++ stack2Str (pop s)
             | otherwise = top s ++ middle ++ stack2Str (pop s)
-            where middle = if Stack.isEmpty (pop s) then "" else ","
+            where middle = if isEmpty (pop s) then "" else ","
 
 createEmptyState :: State
 createEmptyState = newState

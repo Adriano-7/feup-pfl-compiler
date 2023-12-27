@@ -1,6 +1,6 @@
 module State (State,
               newState, insert, load,
-              fromList, toList, toStri) where
+              fromList, toList, toStr) where
 
 data State = Empty 
             | Node String String State State
@@ -26,8 +26,13 @@ load x (Node y v l r) | x == y =  v -- encontrou
 
 listToStr :: [(String, String)] -> String
 listToStr [] = ""
-listToStr ((var,key):[]) = var ++ "=" ++ key
-listToStr ((var,key):xs) = var ++ "=" ++ key ++ "," ++ listToStr xs
+listToStr ((key,val):[]) | val == "tt" = key ++ "=" ++ "True"
+                         | val == "ff" = key ++ "=" ++ "False"
+                         | otherwise = key ++ "=" ++ val
+                        
+listToStr ((key,val):xs) | val == "tt" = key ++ "=" ++ "True" ++ "," ++ listToStr xs
+                         | val == "ff" = key ++ "=" ++ "False" ++ "," ++ listToStr xs
+                         | otherwise = key ++ "=" ++ val ++ "," ++ listToStr xs
 
 toList :: State -> [(String, String)]
 toList Empty = []
