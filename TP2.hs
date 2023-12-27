@@ -4,6 +4,7 @@
 -- Part 1
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
+
 -- Do not modify our definition of Inst and Code
 data Inst =
   Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
@@ -12,7 +13,7 @@ data Inst =
 type Code = [Inst]
 
 createEmptyStack :: Stack
-createEmptyStack = newStack
+createEmptyStack = Stack.newStack
 
 stack2Str :: Stack -> String
 stack2Str s | isEmpty s = ""
@@ -21,20 +22,57 @@ stack2Str s | isEmpty s = ""
             | otherwise = top s ++ middle ++ stack2Str (pop s)
             where middle = if isEmpty (pop s) then "" else ","
 
+-- createEmptyState :: State
 createEmptyState :: State
-createEmptyState = newState
+createEmptyState = State.newState
 
+-- state2Str :: State -> String
 state2Str :: State -> String
-state2Str = toStr --igual a state2Str s = toStr s
+state2Str = State.toStr
 
 -- run :: (Code, Stack, State) -> (Code, Stack, State)
-run = undefined -- TODO
+run :: (Code, Stack, State) -> (Code, Stack, State)
+run ([], stack, state) = ([], stack, state)  
+run (inst:code, stack, state) = case inst of
+  Push n -> run (code, push (show n) stack, state)
+  Add -> run (code, performAdd stack, state)
+  Mult -> run (code, performMult stack, state)
+  --Sub -> run (code, performSub stack, state)
+  --Tru -> run (code, push "tt" stack, state)
+  --Fals -> run (code, push "ff" stack, state)
+  --Equ -> run (code, performEqu stack, state)
+  --Le -> run (code, performLe stack, state)
+  --And -> run (code, performAnd stack, state)
+  --Neg -> run (code, performNeg stack, state)
+  --Fetch var -> run (code, push (load var state) stack, state)
+  --Store var -> run (code, pop (insert var (top stack) state), state)
+  --Noop -> run (code, stack, state)
+  
 
--- To help you test your assembler
+performAdd :: Stack -> Stack
+performAdd stack =
+  case top stack of
+    "tt" -> error "Run-time error"
+    "ff" -> error "Run-time error"
+    val1 -> case top (pop stack) of
+      "tt" -> error "Run-time error"
+      "ff" -> error "Run-time error"
+      val2 -> push (show (read val1 + read val2)) (pop (pop stack))
+    
+performMult :: Stack -> Stack
+performMult stack =
+  case top stack of
+    "tt" -> error "Run-time error"
+    "ff" -> error "Run-time error"
+    val1 -> case top (pop stack) of
+      "tt" -> error "Run-time error"
+      "ff" -> error "Run-time error"
+      val2 -> push (show (read val1 * read val2)) (pop (pop stack))
+
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
   where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
- 
+
 
 -- Examples:
 -- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
