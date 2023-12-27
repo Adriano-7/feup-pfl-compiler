@@ -25,3 +25,4 @@ fromList = Stk --igual a fromList xs = Stk xs
 isEmpty :: Stack -> Bool
 isEmpty (Stk []) = True
 isEmpty (Stk _) = False
+

@@ -46,7 +46,11 @@ run (inst:code, stack, state) = case inst of
     val -> run (code, push val stack, state)
   Store var -> run (code, pop stack, insert var (top stack) state)
   Noop -> run (code, stack, state)
-  
+  Branch c1 c2 -> case top stack of
+    "tt" -> run (c1, pop stack, state)
+    "ff" -> run (c2, pop stack, state)
+    _    -> error "Run-time error: Invalid operand for branch"
+  Loop c1 c2 -> run (c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]], stack, state)
 
 performAdd :: Stack -> Stack
 performAdd stack =
