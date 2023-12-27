@@ -2,7 +2,7 @@
 -- Updated on 15/12/2023
 
 -- Part 1
-
+import Stack (Stack, push, pop, top, empty, fromList, isEmpty)
 -- Do not modify our definition of Inst and Code
 data Inst =
   Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
@@ -10,11 +10,15 @@ data Inst =
   deriving Show
 type Code = [Inst]
 
--- createEmptyStack :: Stack
-createEmptyStack = undefined -- TODO, Uncomment the function signature after defining Stack
+createEmptyStack :: Stack
+createEmptyStack = Stack.empty
 
--- stack2Str :: Stack -> String
-stack2Str = undefined -- TODO, Uncomment all the other function type declarations as you implement them
+stack2Str :: Stack -> String
+stack2Str s | isEmpty s = ""
+            | top s == "tt" = "True" ++ middle ++ stack2Str (pop s)
+            | top s == "ff" = "False" ++ middle ++ stack2Str (pop s)
+            | otherwise = top s ++ middle ++ stack2Str (pop s)
+            where middle = if isEmpty (pop s) then "" else ","
 
 -- createEmptyState :: State
 createEmptyState = undefined -- TODO, Uncomment the function signature after defining State
@@ -28,7 +32,8 @@ run = undefined -- TODO
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
-  where (_,stack,state) = run(code, createEmptyStack, createEmptyState)
+  where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
+ 
 
 -- Examples:
 -- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
@@ -65,8 +70,8 @@ parse = undefined -- TODO
 
 -- To help you test your parser
 testParser :: String -> (String, String)
-testParser programCode = (stack2Str stack, store2Str store)
-  where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
+testParser programCode = (stack2Str stack, state2Str state)
+  where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
