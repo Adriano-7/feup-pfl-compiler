@@ -1,6 +1,3 @@
--- PFL 2023/24 - Haskell practical assignment quickstart
--- Updated on 15/12/2023
-
 -- Part 1
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
@@ -37,16 +34,18 @@ run (inst:code, stack, state) = case inst of
   Push n -> run (code, push (show n) stack, state)
   Add -> run (code, performAdd stack, state)
   Mult -> run (code, performMult stack, state)
-  --And -> run (code, performAnd stack, state)
   Sub -> run (code, performSub stack, state)
   Tru -> run (code, push "tt" stack, state)
   Fals -> run (code, push "ff" stack, state)
   Equ -> run (code, performEqu stack, state)
   Le -> run (code, performLe stack, state)
-  --Neg -> run (code, performNeg stack, state)
-  Fetch var -> run (code, push (load var state) stack, state)
+  And -> run (code, performAnd stack, state)
+  Neg -> run (code, performNeg stack, state)
+  Fetch var -> case load var state of
+    "" -> error $ "Run-time error: Variable '" ++ var ++ "' not found"
+    val -> run (code, push val stack, state)
   Store var -> run (code, pop stack, insert var (top stack) state)
-  --Noop -> run (code, stack, state)
+  Noop -> run (code, stack, state)
   
 
 performAdd :: Stack -> Stack
@@ -95,10 +94,29 @@ performLe stack =
       "ff" -> error "Run-time error"
       val2 -> if (read val1 :: Int) <= (read val2 :: Int) then push "tt" (pop (pop stack)) else push "ff" (pop (pop stack))
 
+performAnd :: Stack -> Stack
+performAnd stack =
+  case top stack of
+    "tt" -> case top (pop stack) of
+      "tt" -> push "tt" (pop (pop stack))
+      "ff" -> push "ff" (pop (pop stack))
+      _    -> error "Run-time error: Invalid operand for logical AND"
+    "ff" -> case top (pop stack) of
+      "tt" -> push "ff" (pop (pop stack))
+      "ff" -> push "ff" (pop (pop stack))
+      _    -> error "Run-time error: Invalid operand for logical AND"
+    _    -> error "Run-time error: Invalid operand for logical AND"     
+
+performNeg :: Stack -> Stack
+performNeg stack =
+  case top stack of
+    "tt" -> push "ff" (pop stack)
+    "ff" -> push "tt" (pop stack)
+    _    -> error "Run-time error: Invalid operand for logical NOT"
+
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
   where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
-
 
 -- Examples:
 -- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
