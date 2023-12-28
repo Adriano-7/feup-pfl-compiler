@@ -164,6 +164,8 @@ data Stm = AssignStm String Aexp    -- Assignment
           | WhileStm Bexp Stm        -- While loop statement
           deriving Show
 
+newtype Program = Program [Stm] deriving Show
+
 -- Compiler functions
 compA :: Aexp -> Code
 compA (NumExp n)     = [Push n]
