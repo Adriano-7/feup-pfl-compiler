@@ -1,3 +1,8 @@
+import Data.List (isInfixOf)
+import Text.Parsec hiding (State)
+import Text.Parsec.String (Parser)
+import Data.Char (isLower, isSpace, isAlpha, isAlphaNum, isDigit)
+
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
 
@@ -46,7 +51,6 @@ run (inst:code, stack, state) = case inst of
     "ff" -> run (c2 ++ code, pop stack, state)
     _    -> error "Run-time error: Invalid operand for branch"
   Loop c1 c2 -> run (c1 ++ [Branch (c2 ++ [Loop c1 c2]) [Noop]] ++ code, stack, state)
-
 
 performAdd :: Stack -> Stack
 performAdd stack =
@@ -114,30 +118,6 @@ performNeg stack =
     "ff" -> push "tt" (pop stack)
     _    -> error "Run-time error: Invalid operand for logical NOT"
 
-testAssembler :: Code -> (String, String)
-testAssembler code = (stack2Str stack, state2Str state)
-  where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
-
--- Examples:
--- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
--- testAssembler [Fals,Push 3,Tru,Store "var",Store "a", Store "someVar"] == ("","a=3,someVar=False,var=True")
--- testAssembler [Fals,Store "var",Fetch "var"] == ("False","var=False")
--- testAssembler [Push (-20),Tru,Fals] == ("False,True,-20","")
--- testAssembler [Push (-20),Tru,Tru,Neg] == ("False,True,-20","")
--- testAssembler [Push (-20),Tru,Tru,Neg,Equ] == ("False,-20","")
--- testAssembler [Push (-20),Push (-21), Le] == ("True","")
--- testAssembler [Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"] == ("","x=4")
--- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]] == ("","fact=3628800,i=1")
--- testAssembler [Push 1, Push 2, Tru, Branch [Sub, Tru] [Add, Fals], Store "x"] == ("1","x=True")
--- testAssembler [Push 1, Push 2, Fals, Branch [Sub, Tru] [Add, Fals], Store "x"] == ("3","x=False")
--- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"], Tru] == ("True","fact=3628800,i=1")
--- If you test:
--- testAssembler [Push 1,Push 2,And]
--- You should get an exception with the string: "Run-time error"
--- If you test:
--- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
--- You should get an exception with the string: "Run-time error"
-
 -- Part 2
 -- Arithmetic expressions
 data Aexp = NumExp Integer         -- Numeric constant
@@ -164,7 +144,84 @@ data Stm = AssignStm String Aexp    -- Assignment
           | WhileStm Bexp Stm        -- While loop statement
           deriving Show
 
-data Program = Program [Stm] deriving Show
+type Program = [Stm]
+
+-- Lexer functions
+data Token = TokAssign          -- ':='
+           | TokSemicolon       -- ';'
+           | TokVar String      -- var name
+           | TokNumber Integer  -- number
+           | TokOpenParen       -- '('
+           | TokCloseParen      --')'
+           | TokAdd             -- '+'
+           | TokSub             -- '-'
+           | TokMul             -- '*'
+           | TokIf              -- 'if'
+           | TokThen            -- 'then'
+           | TokElse            -- 'else'
+           | TokWhile           -- 'while'
+           | TokDo              -- 'do'
+           | TokEqu             -- '='
+           | TokLE              -- '<=' 
+           | TokNot             -- 'not'
+           | TokAnd             -- 'and'
+           | TokTrue            -- 'True'
+           | TokFalse           -- 'False'    
+           deriving Show
+
+lexer :: String -> [Token]
+lexer [] = []
+lexer input@(c:cs)
+    | isSpace c = lexer cs
+    | isAlpha c = lexIdentifier input
+    | isDigit c = lexNumber input
+    | c == '(' = TokOpenParen : lexer cs
+    | c == ')' = TokCloseParen : lexer cs
+    | c == '+' = TokAdd : lexer cs
+    | c == '-' = TokSub : lexer cs
+    | c == '*' = TokMul : lexer cs
+    | c == ':' = lexAssign cs
+    | c == '=' = TokEqu : lexer cs
+    | c == ';' = TokSemicolon : lexer cs
+    | c == '<' = lexLessEqual cs
+    | otherwise = error $ "Unexpected character: " ++ [c]
+
+lexIdentifier :: String -> [Token]
+lexIdentifier input =
+    let (ident, rest) = span isAlphaNum input
+    in case ident of
+      "True" -> TokTrue : lexer rest
+      "False" -> TokFalse : lexer rest
+      "if" -> TokIf : lexer rest
+      "then" -> TokThen : lexer rest
+      "else" -> TokElse : lexer rest
+      "while" -> TokWhile : lexer rest
+      "do" -> TokDo : lexer rest
+      "and" -> TokAnd : lexer rest
+      "not" -> TokNot : lexer rest
+      _ | isLower (head ident) -> TokVar ident : lexer rest
+        | otherwise -> error $ "Invalid variable name: " ++ ident   
+
+lexNumber :: String -> [Token]
+lexNumber input =
+    let (num, rest) = span isDigit input
+    in TokNumber (read num) : lexer rest
+
+lexAssign :: String -> [Token]
+lexAssign ('=':rest) = TokAssign : lexer rest
+lexAssign rest = error $ "Unexpected character after ':': " ++ rest
+
+lexLessEqual :: String -> [Token]
+lexLessEqual ('=':rest) = TokLE : lexer rest
+lexLessEqual rest = error $ "Unexpected character after '<': " ++ rest
+
+lexAnd :: String -> [Token]
+lexAnd rest@(c:cs)
+    | take 2 rest == "and" = TokAnd : lexer (drop 3 rest)
+    | otherwise = error $ "Unexpected character after 'a': " ++ rest
+
+buildData :: [Token] -> Program
+buildData = undefined
 
 -- Compiler functions
 compA :: Aexp -> Code
@@ -190,25 +247,62 @@ compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
--- parse :: String -> Program
-parse = undefined -- TODO
+parse :: String -> Program
+parse = buildData . lexer
 
--- To help you test your parser
+{--
+testAssembler :: Code -> (String, String)
+testAssembler code = (stack2Str stack, state2Str state)
+  where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
+
+-- Examples:
+-- testAssembler [Push 10,Push 4,Push 3,Sub,Mult] == ("-10","")
+-- testAssembler [Fals,Push 3,Tru,Store "var",Store "a", Store "someVar"] == ("","a=3,someVar=False,var=True")
+-- testAssembler [Fals,Store "var",Fetch "var"] == ("False","var=False")
+-- testAssembler [Push (-20),Tru,Fals] == ("False,True,-20","")
+-- testAssembler [Push (-20),Tru,Tru,Neg] == ("False,True,-20","")
+-- testAssembler [Push (-20),Tru,Tru,Neg,Equ] == ("False,-20","")
+-- testAssembler [Push (-20),Push (-21), Le] == ("True","")
+-- testAssembler [Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"] == ("","x=4")
+-- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"]] == ("","fact=3628800,i=1")
+-- testAssembler [Push 1, Push 2, Tru, Branch [Sub, Tru] [Add, Fals], Store "x"] == ("1","x=True")
+-- testAssembler [Push 1, Push 2, Fals, Branch [Sub, Tru] [Add, Fals], Store "x"] == ("3","x=False")
+-- testAssembler [Push 10,Store "i",Push 1,Store "fact",Loop [Push 1,Fetch "i",Equ,Neg] [Fetch "i",Fetch "fact",Mult,Store "fact",Push 1,Fetch "i",Sub,Store "i"], Tru] == ("True","fact=3628800,i=1")
+-- If you test:
+-- testAssembler [Push 1,Push 2,And]
+-- You should get an exception with the string: "Run-time error"
+-- If you test:
+-- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
+-- You should get an exception with the string: "Run-time error"
+--}
+
+-- Example lexer test function
+testLexer :: String -> IO ()
+testLexer input = do
+    let tokens = lexer input
+    putStrLn $ "Input String: " ++ show input
+    putStrLn $ "Tokens: " ++ show tokens
+
+main :: IO ()
+main = do
+    testLexer "another := 2;"
+
+{--
 testParser :: String -> (String, String)
 testParser programCode = (stack2Str stack, state2Str state)
   where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
+--}
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
--- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)" == ("","x=1")
+-- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+-- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","fact=3628800,i=1")
 
-
--- Examples to test the compiler without the parser
+{-- Examples to test the compiler without the parser
 main :: IO ()
 main = do
   {--
@@ -241,3 +335,4 @@ main = do
 
     print compiledCode
     print (testAssembler compiledCode)
+--}
