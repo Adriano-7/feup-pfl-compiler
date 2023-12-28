@@ -139,17 +139,54 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- You should get an exception with the string: "Run-time error"
 
 -- Part 2
+-- Arithmetic expressions
+data Aexp = NumExp Integer         -- Numeric constant
+          | VarExp String          -- Variable
+          | AddExp Aexp Aexp       -- Addition
+          | SubExp Aexp Aexp       -- Subtraction
+          | MulExp Aexp Aexp       -- Multiplication
+          deriving Show
 
--- TODO: Define the types Aexp, Bexp, Stm and Program
+-- Boolean expressions
+data Bexp = TrueExp                -- True constant
+          | FalseExp               -- False constant
+          | EqArExp Aexp Aexp         -- Equality for arithmetic expressions
+          | EqBoolExp Bexp Bexp         -- Equality for boolean expressions
+          | LeExp Aexp Aexp         -- Less than or equal
+          | NotExp Bexp            -- Logical negation
+          | AndExp Bexp Bexp       -- Logical AND
+          deriving Show
 
--- compA :: Aexp -> Code
-compA = undefined -- TODO
+-- Statements
+data Stm = AssignStm String Aexp    -- Assignment
+          | SeqStm [Stm]             -- Sequence of statements
+          | IfStm Bexp Stm Stm       -- If-then-else statement
+          | WhileStm Bexp Stm        -- While loop statement
+          deriving Show
 
--- compB :: Bexp -> Code
-compB = undefined -- TODO
+-- Compiler functions
+compA :: Aexp -> Code
+compA (NumExp n)     = [Push n]
+compA (VarExp var)   = [Fetch var]
+compA (AddExp a1 a2) = compA a2 ++ compA a1 ++ [Add]
+compA (SubExp a1 a2) = compA a2 ++ compA a1 ++ [Sub]
+compA (MulExp a1 a2) = compA a2 ++ compA a1 ++ [Mult]
 
--- compile :: Program -> Code
-compile = undefined -- TODO
+compB :: Bexp -> Code
+compB TrueExp         = [Tru]
+compB FalseExp        = [Fals]
+compB (EqArExp a1 a2)   = compA a2 ++ compA a1 ++ [Equ]
+compB (EqBoolExp b1 b2) = compB b2 ++ compB b1 ++ [Equ]
+compB (LeExp a1 a2)   = compA a2 ++ compA a1 ++ [Le]
+compB (NotExp b)      = compB b ++ [Neg]
+compB (AndExp b1 b2)  = compB b2 ++ compB b1 ++ [And]
+
+compile :: [Stm] -> Code
+compile []                 = []
+compile (AssignStm var a : rest) = compA a ++ [Store var] ++ compile rest
+compile (SeqStm stms : rest)      = compile stms ++ compile rest
+compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
+compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
 -- parse :: String -> Program
 parse = undefined -- TODO
@@ -167,3 +204,38 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+
+
+-- Examples to test the compiler without the parser
+main :: IO ()
+main = do
+  {--
+    --Example 1 "x := 5; x := x - 1;" == ("","x=4")
+    let expression = [AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
+  --}
+  {--
+    -- Example 2 "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
+    let expression = [IfStm (AndExp (NotExp TrueExp) (EqBoolExp (LeExp (NumExp 2) (NumExp 5)) (EqArExp (NumExp 3) (NumExp 4)))) (AssignStm "x" (NumExp 1)) (AssignStm "y" (NumExp 2))]
+  --}
+  {--
+    -- Example 3 "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)" == ("","x=1")
+    let expression = [AssignStm "x" (NumExp 42), IfStm (LeExp (VarExp "x") (NumExp 43)) (AssignStm "x" (NumExp 1)) (SeqStm [AssignStm "x" (NumExp 33), AssignStm "x" (AddExp (VarExp "x") (NumExp 1))])]
+  --}
+  {--
+    -- Example 4 "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
+    let expression = [AssignStm "x" (NumExp 42), IfStm (LeExp (VarExp "x") (NumExp 43)) (AssignStm "x" (NumExp 1)) (AssignStm "x" (NumExp 33)), AssignStm "x" (AddExp (VarExp "x") (NumExp 1))]
+  --}
+  {--
+    -- Example 5 "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
+    let expression = [AssignStm "x" (NumExp 42), IfStm (LeExp (VarExp "x") (NumExp 43)) (AssignStm "x" (NumExp 1)) (AssignStm "x" (NumExp 33)), AssignStm "x" (AddExp (VarExp "x") (NumExp 1)), AssignStm "z" (AddExp (VarExp "x") (VarExp "x"))]
+  --}
+  {--
+    -- Example 6 "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
+    let expression = [AssignStm "x" (NumExp 2), AssignStm "y" (MulExp (SubExp (VarExp "x") (NumExp 3)) (AddExp (NumExp 4) (MulExp (NumExp 2) (NumExp 3)))), AssignStm "z" (AddExp (VarExp "x") (MulExp (VarExp "x") (NumExp 2)))]
+  --}
+    --Example 7 "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+    let expression = [AssignStm "i" (NumExp 10), AssignStm "fact" (NumExp 1), WhileStm (NotExp (EqArExp (VarExp "i") (NumExp 1))) (SeqStm [AssignStm "fact" (MulExp (VarExp "fact") (VarExp "i")), AssignStm "i" (SubExp (VarExp "i") (NumExp 1))])]
+    let compiledCode = compile expression
+
+    print compiledCode
+    print (testAssembler compiledCode)
