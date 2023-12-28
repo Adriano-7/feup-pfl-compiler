@@ -220,6 +220,9 @@ lexAnd rest@(c:cs)
     | take 2 rest == "and" = TokAnd : lexer (drop 3 rest)
     | otherwise = error $ "Unexpected character after 'a': " ++ rest
 
+buildData :: [Token] -> Program
+buildData = undefined
+
 -- Compiler functions
 compA :: Aexp -> Code
 compA (NumExp n)     = [Push n]
@@ -244,8 +247,8 @@ compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
---parse :: String -> Program
-parse = undefined -- TODO
+parse :: String -> Program
+parse = buildData . lexer
 
 {--
 testAssembler :: Code -> (String, String)
@@ -297,7 +300,7 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+-- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","fact=3628800,i=1")
 
 {-- Examples to test the compiler without the parser
 main :: IO ()
