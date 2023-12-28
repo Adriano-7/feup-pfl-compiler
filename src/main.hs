@@ -1,7 +1,7 @@
 import Data.List (isInfixOf)
 import Text.Parsec hiding (State)
 import Text.Parsec.String (Parser)
-import Data.Char (isSpace, isAlpha, isAlphaNum, isDigit)
+import Data.Char (isLower, isSpace, isAlpha, isAlphaNum, isDigit)
 
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
@@ -199,7 +199,8 @@ lexIdentifier input =
       "do" -> TokDo : lexer rest
       "and" -> TokAnd : lexer rest
       "not" -> TokNot : lexer rest
-      _ -> TokVar ident : lexer rest
+      _ | isLower (head ident) -> TokVar ident : lexer rest
+        | otherwise -> error $ "Invalid variable name: " ++ ident   
 
 lexNumber :: String -> [Token]
 lexNumber input =
@@ -243,7 +244,7 @@ compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
--- parse :: String -> Program
+--parse :: String -> Program
 parse = undefined -- TODO
 
 {--
@@ -281,7 +282,7 @@ testLexer input = do
 
 main :: IO ()
 main = do
-    testLexer "x := 5; if x <= 43 then (x := 1;y:=2) else (anotherVar := 3);"
+    testLexer "another := 2;"
 
 {--
 testParser :: String -> (String, String)
@@ -292,7 +293,7 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
--- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)" == ("","x=1")
+-- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
