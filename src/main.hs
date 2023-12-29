@@ -250,9 +250,47 @@ compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
+parseConstOrParen :: [Token] -> Maybe (Bexp, [Token])
+parseConstOrParen (TokTrue : tokens) = Just (TrueExp, tokens)
+parseConstOrParen (TokFalse : tokens) = Just (FalseExp, tokens)
+parseConstOrParen (TokOpenParen : tokens) = case parseBexp tokens of
+  (bexp, TokCloseParen : restTokens) -> Just (bexp, restTokens)
+  _ -> error "Missing closing parenthesis"
+
+parseLE :: [Token] -> Maybe (Bexp, [Token])
+parseLE tokens = case parseAexp tokens of
+  (aexp, TokLE : restTokens) -> case parseAexp restTokens of
+    (aexp2, restTokens2) -> Just (LeExp aexp aexp2, restTokens2)
+
+parseIntEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseIntEqOrMore tokens = case parseAexp tokens of
+  (aexp, TokIntEqu : restTokens) -> case parseAexp restTokens of
+    (aexp2, restTokens2) -> Just (EqArExp aexp aexp2, restTokens2)
+
+parseNotOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseNotOrMore (TokNot : tokens) = case parseIntEqOrMore tokens of
+  Just (bexp, restTokens) -> Just (NotExp bexp, restTokens)
+parseNotOrMore tokens = parseIntEqOrMore tokens
+
+parseBoolEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseBoolEqOrMore tokens = case parseNotOrMore tokens of
+  Just (bexp, TokBoolEqu : restTokens) -> case parseBoolEqOrMore restTokens of
+    Just (bexp2, restTokens2) -> Just (EqBoolExp bexp bexp2, restTokens2)
+  result -> result
+
+parseAndOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseAndOrMore tokens = case parseBoolEqOrMore tokens of
+  Just (bexp, TokAnd : restTokens) -> case parseAndOrMore restTokens of
+    Just (bexp2, restTokens2) -> Just (AndExp bexp bexp2, restTokens2)
+  result -> result
+
+parseBexp :: [Token] -> Bexp
+parseBexp tokens = case parseAndOrMore tokens of
+  Just (bexp, []) -> bexp
+  Just ( _, rest) -> error $ "Unparsed tokens: " ++ show rest
+
 parse :: String -> Program
 parse = buildData . lexer
-
 {--
 buildData :: [Token] -> Program
 buildData [] = []
@@ -263,10 +301,7 @@ parseStm :: [Token] -> (Stm, [Token])
 parseStm = undefined
 
 parseAexp :: [Token] -> (Aexp, [Token])
-parseAexp = undefined  
-
-parseBexp :: [Token] -> (Bexp, [Token])
-parseBexp = undefined  
+parseAexp = undefined
 --}
 
 testAssembler :: Code -> (String, String)
