@@ -226,6 +226,51 @@ lexAnd rest@(c:cs)
 buildData :: [Token] -> Program
 buildData = undefined
 
+parseAexp :: [Token] -> Maybe (Aexp, [Token])
+parseAexp tokens = case parseSumOrProdOrIntOrPar tokens of
+    Just (expr, []) -> Just (expr, [])
+    _ -> Nothing
+
+parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
+parseIntOrParenExpr (TokNumber n : restTokens)
+  = Just (NumExp n, restTokens)
+
+parseIntOrParenExpr (TokVar var : restTokens)
+  = Just (VarExp var, restTokens)
+
+parseIntOrParenExpr (TokOpenParen : restTokens1)
+  = case parseSumOrProdOrIntOrPar restTokens1 of
+    Just (expr, TokCloseParen : restTokens2) ->
+      Just (expr, restTokens2)
+    Just _ -> Nothing
+    Nothing -> Nothing
+parseIntOrParenExpr tokens = Nothing
+
+parseProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseProdOrIntOrPar tokens
+  = case parseIntOrParenExpr tokens of
+    Just (expr1, TokMul : restTokens1) ->
+      case parseProdOrIntOrPar restTokens1 of
+        Just (expr2, restTokens2) ->
+          Just (MulExp expr1 expr2, restTokens2)
+        _ -> Nothing
+    result -> result
+
+parseSumOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseSumOrProdOrIntOrPar tokens
+  = case parseProdOrIntOrPar tokens of
+    Just (expr1, TokAdd : restTokens1) ->
+      case parseSumOrProdOrIntOrPar restTokens1 of
+        Just (expr2, restTokens2) ->
+          Just (AddExp expr1 expr2, restTokens2)
+        _ -> Nothing
+    Just (expr1, TokSub : restTokens1) ->
+      case parseSumOrProdOrIntOrPar restTokens1 of
+        Just (expr2, restTokens2) ->
+          Just (SubExp expr1 expr2, restTokens2)
+        _ -> Nothing
+    result -> result
+
 -- Compiler functions
 compA :: Aexp -> Code
 compA (NumExp n)     = [Push n]
@@ -252,6 +297,19 @@ compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
 parse :: String -> Program
 parse = buildData . lexer
+
+testParseAexp :: IO ()
+testParseAexp = do
+    let tokens1 = [TokOpenParen, TokNumber 10, TokAdd, TokNumber 4, TokCloseParen, TokMul, TokNumber 3]
+    let result1 = parseAexp tokens1 
+    print result1
+
+    let compiledCode1 = case result1 of
+            Just (aexp, []) -> compA aexp
+            _ -> error "Invalid arithmetic expression"
+    print compiledCode1
+
+    print (testAssembler compiledCode1)
 
 {--
 buildData :: [Token] -> Program
