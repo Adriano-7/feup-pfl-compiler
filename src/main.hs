@@ -161,7 +161,8 @@ data Token = TokAssign          -- ':='
            | TokElse            -- 'else'
            | TokWhile           -- 'while'
            | TokDo              -- 'do'
-           | TokEqu             -- '='
+           | TokBoolEqu         -- '='
+           | TokIntEqu           -- '=='
            | TokLE              -- '<=' 
            | TokNot             -- 'not'
            | TokAnd             -- 'and'
@@ -181,7 +182,7 @@ lexer input@(c:cs)
     | c == '-' = TokSub : lexer cs
     | c == '*' = TokMul : lexer cs
     | c == ':' = lexAssign cs
-    | c == '=' = TokEqu : lexer cs
+    | c == '=' = lexEqual cs
     | c == ';' = TokSemicolon : lexer cs
     | c == '<' = lexLessEqual cs
     | otherwise = error $ "Unexpected character: " ++ [c]
@@ -210,6 +211,10 @@ lexNumber input =
 lexAssign :: String -> [Token]
 lexAssign ('=':rest) = TokAssign : lexer rest
 lexAssign rest = error $ "Unexpected character after ':': " ++ rest
+
+lexEqual :: String -> [Token]
+lexEqual ('=':rest) = TokIntEqu : lexer rest
+lexEqual rest = TokBoolEqu : lexer rest
 
 lexLessEqual :: String -> [Token]
 lexLessEqual ('=':rest) = TokLE : lexer rest
