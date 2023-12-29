@@ -1,7 +1,5 @@
-import Data.List (isInfixOf)
-import Text.Parsec hiding (State)
-import Text.Parsec.String (Parser)
 import Data.Char (isLower, isSpace, isAlpha, isAlphaNum, isDigit)
+import Data.List (isInfixOf)
 
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
@@ -245,7 +243,7 @@ compB (LeExp a1 a2)   = compA a2 ++ compA a1 ++ [Le]
 compB (NotExp b)      = compB b ++ [Neg]
 compB (AndExp b1 b2)  = compB b2 ++ compB b1 ++ [And]
 
-compile :: [Stm] -> Code
+compile :: Program -> Code
 compile []                 = []
 compile (AssignStm var a : rest) = compA a ++ [Store var] ++ compile rest
 compile (SeqStm stms : rest)      = compile stms ++ compile rest
@@ -256,6 +254,21 @@ parse :: String -> Program
 parse = buildData . lexer
 
 {--
+buildData :: [Token] -> Program
+buildData [] = []
+buildData tokens = case parseStm tokens of
+    (stm, restTokens) -> stm : buildData restTokens
+
+parseStm :: [Token] -> (Stm, [Token])
+parseStm = undefined
+
+parseAexp :: [Token] -> (Aexp, [Token])
+parseAexp = undefined  
+
+parseBexp :: [Token] -> (Bexp, [Token])
+parseBexp = undefined  
+--}
+
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
   where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
@@ -279,7 +292,6 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- If you test:
 -- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
 -- You should get an exception with the string: "Run-time error"
---}
 
 -- Example lexer test function
 testLexer :: String -> IO ()
@@ -288,28 +300,28 @@ testLexer input = do
     putStrLn $ "Input String: " ++ show input
     putStrLn $ "Tokens: " ++ show tokens
 
-main :: IO ()
-main = do
-    testLexer "another := 2;"
-
-{--
 testParser :: String -> (String, String)
 testParser programCode = (stack2Str stack, state2Str state)
   where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
---}
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
+-- testParser "x := 0 - 2;" == ("","x=-2")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
+-- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
+-- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
+-- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
+-- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","fact=3628800,i=1")
+-- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
 
 {-- Examples to test the compiler without the parser
 main :: IO ()
 main = do
+  -- testLexer "x := 5; x := x - 1;"
   {--
     --Example 1 "x := 5; x := x - 1;" == ("","x=4")
     let expression = [AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
