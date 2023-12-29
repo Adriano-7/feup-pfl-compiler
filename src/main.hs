@@ -235,11 +235,15 @@ parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
 parseIntOrParenExpr (TokNumber n : restTokens)
   = Just (NumExp n, restTokens)
 
+parseIntOrParenExpr (TokVar var : restTokens)
+  = Just (VarExp var, restTokens)
+
 parseIntOrParenExpr (TokOpenParen : restTokens1)
   = case parseSumOrProdOrIntOrPar restTokens1 of
     Just (expr, TokCloseParen : restTokens2) ->
       Just (expr, restTokens2)
-    _ -> Nothing
+    Just _ -> Nothing
+    Nothing -> Nothing
 parseIntOrParenExpr tokens = Nothing
 
 parseProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
@@ -300,13 +304,11 @@ testParseAexp = do
     let result1 = parseAexp tokens1 
     print result1
 
-    --Compile the result
     let compiledCode1 = case result1 of
             Just (aexp, []) -> compA aexp
             _ -> error "Invalid arithmetic expression"
     print compiledCode1
 
-    --run the compiled code
     print (testAssembler compiledCode1)
 
 {--
