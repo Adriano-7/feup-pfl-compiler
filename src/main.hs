@@ -166,7 +166,7 @@ data Token = TokAssign          -- ':='
            | TokAnd             -- 'and'
            | TokTrue            -- 'True'
            | TokFalse           -- 'False'    
-           deriving Show
+           deriving (Show, Eq)
 
 lexer :: String -> [Token]
 lexer [] = []
@@ -226,11 +226,17 @@ lexAnd rest@(c:cs)
 buildData :: [Token] -> Program
 buildData = undefined
 
-parseAexp :: [Token] -> Maybe (Aexp, [Token])
+parseAexp :: [Token] -> Aexp
 parseAexp tokens = case parseSumOrProdOrIntOrPar tokens of
-    Just (expr, []) -> Just (expr, [])
-    _ -> Nothing
+    Just (expr, []) -> expr
+    _ -> error $ "Unparsed tokens: " ++ show tokens
 
+parseBexp :: [Token] -> Bexp
+parseBexp tokens = case parseAndOrMore tokens of
+  Just (bexp, []) -> bexp
+  Just ( _, rest) -> error $ "Unparsed tokens: " ++ show rest
+
+--parserA auxiliary functions
 parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
 parseIntOrParenExpr (TokNumber n : restTokens)
   = Just (NumExp n, restTokens)
@@ -271,6 +277,61 @@ parseSumOrProdOrIntOrPar tokens
         _ -> Nothing
     result -> result
 
+--parserB auxiliary functions
+isAritmeticToken :: Token -> Bool
+isAritmeticToken (TokNumber _) = True
+isAritmeticToken (TokVar _) = True
+isAritmeticToken tok = tok `elem` [TokOpenParen, TokCloseParen, TokAdd, TokSub, TokMul]
+
+pickAritmeticTokens :: [Token] -> ([Token], [Token])
+pickAritmeticTokens [] = ([], [])
+pickAritmeticTokens (h:t) | isAritmeticToken h = (h:aTokens, restTokens)
+                          | otherwise = ([], h:t)
+  where (aTokens, restTokens) = pickAritmeticTokens t
+
+parseConstOrParen :: [Token] -> Maybe (Bexp, [Token])
+parseConstOrParen (TokTrue : tokens) = Just (TrueExp, tokens)
+parseConstOrParen (TokFalse : tokens) = Just (FalseExp, tokens)
+parseConstOrParen (TokOpenParen : tokens) = case parseAndOrMore tokens of
+  Just (bexp, TokCloseParen : restTokens) -> Just (bexp, restTokens)
+  _ -> error "Missing closing parenthesis"
+parseConstOrParen tokens = error $ "Unexpected tokens: " ++ show tokens
+
+parseLE :: [Token] -> Maybe (Bexp, [Token])
+parseLE tokens = 
+  case pickAritmeticTokens tokens of
+    ([], _) -> parseConstOrParen tokens
+    (aTokens, TokLE:rest) -> case pickAritmeticTokens rest of
+      ([], _) -> parseConstOrParen tokens
+      (aTokens2, rest2) -> Just (LeExp (parseAexp aTokens) (parseAexp aTokens2), rest2)
+    _ -> parseConstOrParen tokens
+
+parseIntEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseIntEqOrMore tokens =
+  case pickAritmeticTokens tokens of
+    ([], _) -> parseLE tokens
+    (aTokens, TokIntEqu:rest) -> case pickAritmeticTokens rest of
+      ([], _) -> parseLE tokens
+      (aTokens2, rest2) -> Just (EqArExp (parseAexp aTokens) (parseAexp aTokens2), rest2)
+    _ -> parseLE tokens
+
+parseNotOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseNotOrMore (TokNot : tokens) = case parseIntEqOrMore tokens of
+  Just (bexp, restTokens) -> Just (NotExp bexp, restTokens)
+parseNotOrMore tokens = parseIntEqOrMore tokens
+
+parseBoolEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseBoolEqOrMore tokens = case parseNotOrMore tokens of
+  Just (bexp, TokBoolEqu : restTokens) -> case parseBoolEqOrMore restTokens of
+    Just (bexp2, restTokens2) -> Just (EqBoolExp bexp bexp2, restTokens2)
+  result -> result
+
+parseAndOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseAndOrMore tokens = case parseBoolEqOrMore tokens of
+  Just (bexp, TokAnd : restTokens) -> case parseAndOrMore restTokens of
+    Just (bexp2, restTokens2) -> Just (AndExp bexp bexp2, restTokens2)
+  result -> result
+
 -- Compiler functions
 compA :: Aexp -> Code
 compA (NumExp n)     = [Push n]
@@ -295,58 +356,36 @@ compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
-parseConstOrParen :: [Token] -> Maybe (Bexp, [Token])
-parseConstOrParen (TokTrue : tokens) = Just (TrueExp, tokens)
-parseConstOrParen (TokFalse : tokens) = Just (FalseExp, tokens)
-parseConstOrParen (TokOpenParen : tokens) = case parseBexp tokens of
-  (bexp, TokCloseParen : restTokens) -> Just (bexp, restTokens)
-  _ -> error "Missing closing parenthesis"
-
-parseLE :: [Token] -> Maybe (Bexp, [Token])
-parseLE tokens = case parseAexp tokens of
-  (aexp, TokLE : restTokens) -> case parseAexp restTokens of
-    (aexp2, restTokens2) -> Just (LeExp aexp aexp2, restTokens2)
-
-parseIntEqOrMore :: [Token] -> Maybe (Bexp, [Token])
-parseIntEqOrMore tokens = case parseAexp tokens of
-  (aexp, TokIntEqu : restTokens) -> case parseAexp restTokens of
-    (aexp2, restTokens2) -> Just (EqArExp aexp aexp2, restTokens2)
-
-parseNotOrMore :: [Token] -> Maybe (Bexp, [Token])
-parseNotOrMore (TokNot : tokens) = case parseIntEqOrMore tokens of
-  Just (bexp, restTokens) -> Just (NotExp bexp, restTokens)
-parseNotOrMore tokens = parseIntEqOrMore tokens
-
-parseBoolEqOrMore :: [Token] -> Maybe (Bexp, [Token])
-parseBoolEqOrMore tokens = case parseNotOrMore tokens of
-  Just (bexp, TokBoolEqu : restTokens) -> case parseBoolEqOrMore restTokens of
-    Just (bexp2, restTokens2) -> Just (EqBoolExp bexp bexp2, restTokens2)
-  result -> result
-
-parseAndOrMore :: [Token] -> Maybe (Bexp, [Token])
-parseAndOrMore tokens = case parseBoolEqOrMore tokens of
-  Just (bexp, TokAnd : restTokens) -> case parseAndOrMore restTokens of
-    Just (bexp2, restTokens2) -> Just (AndExp bexp bexp2, restTokens2)
-  result -> result
-
-parseBexp :: [Token] -> Bexp
-parseBexp tokens = case parseAndOrMore tokens of
-  Just (bexp, []) -> bexp
-  Just ( _, rest) -> error $ "Unparsed tokens: " ++ show rest
-
 parse :: String -> Program
 parse = buildData . lexer
 
 testParseAexp :: IO ()
 testParseAexp = do
-    let tokens1 = [TokOpenParen, TokNumber 10, TokAdd, TokNumber 4, TokCloseParen, TokMul, TokNumber 3]
+    let tokens1 = [TokNumber 2]
+    print tokens1
     let result1 = parseAexp tokens1 
     print result1
 
-    let compiledCode1 = case result1 of
-            Just (aexp, []) -> compA aexp
-            _ -> error "Invalid arithmetic expression"
+    let compiledCode1 = compA result1
     print compiledCode1
+
+    print (testAssembler compiledCode1)
+
+testParseBexp :: IO ()
+testParseBexp = do
+    let string = "1 == 0+1 = 2+1 == 3"
+    print string
+    print ""
+    let tokens1 = lexer string
+    print tokens1
+    print ""
+    let result1 = parseBexp tokens1 
+    print result1
+    print ""
+
+    let compiledCode1 =  compB result1
+    print compiledCode1
+    print ""
 
     print (testAssembler compiledCode1)
 
