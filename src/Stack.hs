@@ -20,7 +20,7 @@ newStack :: Stack
 newStack = Stk []
 
 fromList :: [String] -> Stack
-fromList = Stk --igual a fromList xs = Stk xs
+fromList = Stk
 
 isEmpty :: Stack -> Bool
 isEmpty (Stk []) = True
