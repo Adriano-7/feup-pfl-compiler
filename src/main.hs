@@ -227,9 +227,28 @@ buildData :: [Token] -> Program
 buildData = undefined
 
 parseAexp :: [Token] -> Maybe (Aexp, [Token])
-parseAexp tokens = case parseSumOrProdOrIntOrPar tokens of
+parseAexp tokens = case parseSumOrDifOrProdOrIntOrPar tokens of
     Just (expr, []) -> Just (expr, [])
     _ -> Nothing
+
+parseSumOrDifOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseSumOrDifOrProdOrIntOrPar tokens =
+  case parseProdOrIntOrPar tokens of
+    Just (expr1, restTokens1) ->
+      parseSumOrDifOrProdOrIntOrPar' expr1 restTokens1
+    _ -> Nothing
+
+parseSumOrDifOrProdOrIntOrPar' :: Aexp -> [Token] -> Maybe (Aexp, [Token])
+parseSumOrDifOrProdOrIntOrPar' expr1 tokens =
+  case tokens of
+    TokAdd : restTokens1 -> do
+      (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
+      parseSumOrDifOrProdOrIntOrPar' (AddExp expr1 expr2) restTokens2
+    TokSub : restTokens1 -> do
+      (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
+      parseSumOrDifOrProdOrIntOrPar' (SubExp expr1 expr2) restTokens2
+    _ -> Just (expr1, tokens)
+
 
 parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
 parseIntOrParenExpr (TokNumber n : restTokens)
@@ -239,7 +258,7 @@ parseIntOrParenExpr (TokVar var : restTokens)
   = Just (VarExp var, restTokens)
 
 parseIntOrParenExpr (TokOpenParen : restTokens1)
-  = case parseSumOrProdOrIntOrPar restTokens1 of
+  = case parseSumOrDifOrProdOrIntOrPar restTokens1 of
     Just (expr, TokCloseParen : restTokens2) ->
       Just (expr, restTokens2)
     Just _ -> Nothing
@@ -253,21 +272,6 @@ parseProdOrIntOrPar tokens
       case parseProdOrIntOrPar restTokens1 of
         Just (expr2, restTokens2) ->
           Just (MulExp expr1 expr2, restTokens2)
-        _ -> Nothing
-    result -> result
-
-parseSumOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
-parseSumOrProdOrIntOrPar tokens
-  = case parseProdOrIntOrPar tokens of
-    Just (expr1, TokAdd : restTokens1) ->
-      case parseSumOrProdOrIntOrPar restTokens1 of
-        Just (expr2, restTokens2) ->
-          Just (AddExp expr1 expr2, restTokens2)
-        _ -> Nothing
-    Just (expr1, TokSub : restTokens1) ->
-      case parseSumOrProdOrIntOrPar restTokens1 of
-        Just (expr2, restTokens2) ->
-          Just (SubExp expr1 expr2, restTokens2)
         _ -> Nothing
     result -> result
 
@@ -300,7 +304,7 @@ parse = buildData . lexer
 
 testParseAexp :: IO ()
 testParseAexp = do
-    let tokens1 = [TokOpenParen, TokNumber 10, TokAdd, TokNumber 4, TokCloseParen, TokMul, TokNumber 3]
+    let tokens1 = [TokNumber 2, TokSub, TokNumber 1, TokAdd, TokNumber 1]
     let result1 = parseAexp tokens1 
     print result1
 
