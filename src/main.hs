@@ -284,21 +284,18 @@ isAritmeticToken (TokVar _) = True
 isAritmeticToken tok = tok `elem` [ TokAdd, TokSub, TokMul]
 
 pickAritmeticTokens :: [Token] -> ([Token], [Token])
-pickAritmeticTokens (TokOpenParen:rest) = ([], TokOpenParen:rest)
 pickAritmeticTokens tokens = pickAritmeticTokensAux tokens 0 []
 
 
 pickAritmeticTokensAux :: [Token] -> Int -> [Token] -> ([Token], [Token])
 pickAritmeticTokensAux [] 0 acc = (reverse acc, [])
-pickAritmeticTokensAux [] _ _ = error "Unbalanced parentheses"
-pickAritmeticTokensAux (h:t) balance acc
-    | h == TokOpenParen = let (innerTokens, restTokens) = pickAritmeticTokensAux t (balance + 1) [h]
-                          in pickAritmeticTokensAux restTokens balance (reverse innerTokens ++ acc)
-    | h == TokCloseParen = if balance == 0
-                           then (reverse acc, h:t)
-                           else pickAritmeticTokensAux t (balance - 1) (h:acc)
-    | isAritmeticToken h = pickAritmeticTokensAux t balance (h:acc)
-    | otherwise = (reverse acc, h:t)
+pickAritmeticTokensAux [] n acc = error $ "Unbalanced parentheses " ++ show (reverse acc) ++ " " ++ show n
+pickAritmeticTokensAux (TokOpenParen : t) balance acc = pickAritmeticTokensAux t (balance + 1) (TokOpenParen : acc)
+pickAritmeticTokensAux (TokCloseParen : t) 0 acc = (reverse acc, TokCloseParen : t)
+pickAritmeticTokensAux (TokCloseParen : t) balance acc = pickAritmeticTokensAux t (balance - 1) (TokCloseParen : acc)
+pickAritmeticTokensAux (h : t) balance acc
+    | isAritmeticToken h = pickAritmeticTokensAux t balance (h : acc)
+    | otherwise = (reverse acc, h : t)
 
 parseConstOrParen :: [Token] -> Maybe (Bexp, [Token])
 parseConstOrParen (TokTrue : tokens) = Just (TrueExp, tokens)
@@ -338,6 +335,7 @@ parseBoolEqOrMore tokens = case parseNotOrMore tokens of
   result -> result
 
 parseAndOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseAndOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
 parseAndOrMore tokens = case parseBoolEqOrMore tokens of
   Just (bexp, TokAnd : restTokens) -> case parseAndOrMore restTokens of
     Just (bexp2, restTokens2) -> Just (AndExp bexp bexp2, restTokens2)
@@ -384,7 +382,7 @@ testParseAexp = do
 
 testParseBexp :: IO ()
 testParseBexp = do
-    let string = "(1 == 0+1 = (2+1 == 4))"
+    let string = "True = (2+1 == 4)"
     print string
     print ""
     let tokens1 = lexer string
