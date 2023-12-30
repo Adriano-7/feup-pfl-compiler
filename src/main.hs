@@ -1,10 +1,9 @@
-import Data.List (isInfixOf)
-import Text.Parsec hiding (State)
-import Text.Parsec.String (Parser)
 import Data.Char (isLower, isSpace, isAlpha, isAlphaNum, isDigit)
+import Data.List (isInfixOf)
 
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
+import Control.Monad.Trans.Select (select)
 
 data Inst =
   Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
@@ -168,7 +167,7 @@ data Token = TokAssign          -- ':='
            | TokAnd             -- 'and'
            | TokTrue            -- 'True'
            | TokFalse           -- 'False'    
-           deriving Show
+           deriving (Show, Eq)
 
 lexer :: String -> [Token]
 lexer [] = []
@@ -226,7 +225,203 @@ lexAnd rest@(c:cs)
     | otherwise = error $ "Unexpected character after 'a': " ++ rest
 
 buildData :: [Token] -> Program
-buildData = undefined
+buildData tokens = 
+  case parseStm tokens of
+    Just (stm, []) -> [stm] 
+    Just (stm, restTokens) -> stm : buildData restTokens
+    _ -> error $ "Unexpected error parsing statement (buildData): " ++ show tokens
+
+selectAexpr :: [Token] -> Aexp
+selectAexpr tokens = case parseAexp tokens of
+  Just (aexp, []) -> aexp
+  _ -> error $ "Unexpected error parsing arithmetic expression: " ++ show tokens
+
+parseAexp :: [Token] -> Maybe (Aexp, [Token])
+parseAexp tokens = case parseSumOrDifOrProdOrIntOrPar tokens of
+    Just (aexp, []) -> Just (aexp, [])
+    Just (aexp, TokSemicolon:rest) -> Just (aexp, TokSemicolon:rest)
+    Just (_, rest) -> error $ "Unparsed tokens (parseA): " ++ show rest
+    _ -> error $ "Unexpected error parsing arithmetic expression: " ++ show tokens
+
+parseBexp :: [Token] -> Maybe (Bexp, [Token])
+parseBexp tokens = case parseAndOrMore tokens of
+  Just (bexp, []) -> Just (bexp, [])
+  Just (bexp, TokThen:rest) -> Just (bexp, TokThen:rest)
+  Just (bexp, TokElse:rest) -> Just (bexp, TokElse:rest)
+  Just (bexp, TokDo:rest) -> Just (bexp, TokDo:rest)
+  Just ( _, rest) -> error $ "Unparsed tokens (parseB): " ++ show rest
+  _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
+
+parseStm :: [Token] -> Maybe (Stm, [Token])
+parseStm tokens = case tokens of
+  TokVar var : TokAssign : restTokens ->
+    case parseAexp restTokens of
+      Just (aexp, restTokens1) -> case restTokens1 of
+        TokSemicolon : restTokens2 -> Just (AssignStm var aexp, restTokens2)
+        _ -> error "Missing semicolon after assignment"
+      Nothing -> error "Failed to parse arithmetic expression"
+
+  TokIf : restTokens1 ->
+    case parseBexp restTokens1 of
+      Just (bexp, restTokens2) -> case restTokens2 of
+        TokThen : restTokens3 ->
+          case parseStm restTokens3 of
+            Just (stm1, TokElse : restTokens4) ->
+              case parseStm restTokens4 of
+                Just (SeqStm stm2, TokSemicolon : restTokens5) ->
+                  Just (IfStm bexp stm1 (SeqStm stm2), restTokens5)
+                Just (SeqStm stm2, restTokens5) -> 
+                  error $ "Missing semicolon after 'else' statement" ++ show restTokens5
+                Just (stm2, restTokens5) -> 
+                  Just (IfStm bexp stm1 stm2, restTokens5)
+            _ -> error "Missing 'else' after 'then' statement"
+        _ -> error "Missing 'then' after 'if' statement"
+      Nothing -> error "Failed to parse boolean expression"
+
+  TokWhile : restTokens1 ->
+    case parseBexp restTokens1 of
+      Just (bexp, restTokens2) -> case restTokens2 of
+        TokDo : restTokens3 ->
+          case parseStm restTokens3 of
+              Just (SeqStm stm, TokSemicolon : restTokens5) ->
+                Just (WhileStm bexp (SeqStm stm), restTokens5)
+              Just (SeqStm stm, restTokens5) -> 
+                error $ "Missing semicolon after 'else' statement" ++ show restTokens5
+              Just (stm, restTokens5) -> 
+                Just (WhileStm bexp stm, restTokens5)
+
+        _ -> error "Missing 'do' after 'while' statement"
+      Nothing -> error "Failed to parse boolean expression"
+
+  TokOpenParen : restTokens1 ->
+    case parseSeqStm restTokens1 of
+      Just (stmList, restTokens2) -> Just (SeqStm stmList, restTokens2)
+  
+  _ -> error $ "Unexpected error parsing statement: " ++ show tokens
+
+parseSeqStm :: [Token] -> Maybe ([Stm], [Token])
+parseSeqStm tokens =
+  case tokens of
+    TokCloseParen : restTokens -> Just ([], restTokens)
+    _ -> case parseStm tokens of
+      Just (stm, restTokens1) -> case parseSeqStm restTokens1 of
+        Just ([], restTokens2) -> Just ([stm], restTokens2)
+        Just (stmList, restTokens2) -> Just (stm : stmList, restTokens2)
+        _ -> error $ "Unexpected error parsing restTokens1 in parseSeqStm: " ++ show restTokens1
+      _ -> error $ "Unexpected error parsing tokens in parseSeqStm: " ++ show tokens
+
+--parserA auxiliary functions
+parseSumOrDifOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseSumOrDifOrProdOrIntOrPar tokens =
+  case parseProdOrIntOrPar tokens of
+    Just (expr1, restTokens1) ->
+      parseSumOrDifOrProdOrIntOrParAux expr1 restTokens1
+    _ -> Nothing
+
+parseSumOrDifOrProdOrIntOrParAux :: Aexp -> [Token] -> Maybe (Aexp, [Token])
+parseSumOrDifOrProdOrIntOrParAux expr1 tokens =
+  case tokens of
+    TokAdd : restTokens1 -> do
+      (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
+      parseSumOrDifOrProdOrIntOrParAux (AddExp expr1 expr2) restTokens2
+    TokSub : restTokens1 -> do
+      (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
+      parseSumOrDifOrProdOrIntOrParAux (SubExp expr1 expr2) restTokens2
+    _ -> Just (expr1, tokens)
+
+
+parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
+parseIntOrParenExpr (TokNumber n : restTokens)
+  = Just (NumExp n, restTokens)
+
+parseIntOrParenExpr (TokVar var : restTokens)
+  = Just (VarExp var, restTokens)
+
+parseIntOrParenExpr (TokOpenParen : restTokens1)
+  = case parseSumOrDifOrProdOrIntOrPar restTokens1 of
+    Just (expr, TokCloseParen : restTokens2) ->
+      Just (expr, restTokens2)
+    Just _ -> Nothing
+    Nothing -> Nothing
+parseIntOrParenExpr tokens = Nothing
+
+parseProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseProdOrIntOrPar tokens
+  = case parseIntOrParenExpr tokens of
+    Just (expr1, TokMul : restTokens1) ->
+      case parseProdOrIntOrPar restTokens1 of
+        Just (expr2, restTokens2) ->
+          Just (MulExp expr1 expr2, restTokens2)
+        _ -> Nothing
+    result -> result
+
+--parserB auxiliary functions
+isAritmeticToken :: Token -> Bool
+isAritmeticToken (TokNumber _) = True
+isAritmeticToken (TokVar _) = True
+isAritmeticToken tok = tok `elem` [ TokAdd, TokSub, TokMul]
+
+pickAritmeticTokens :: [Token] -> ([Token], [Token])
+pickAritmeticTokens tokens = pickAritmeticTokensAux tokens 0 []
+
+
+pickAritmeticTokensAux :: [Token] -> Int -> [Token] -> ([Token], [Token])
+pickAritmeticTokensAux [] 0 acc = (reverse acc, [])
+pickAritmeticTokensAux [] n acc = error $ "Unbalanced parentheses " ++ show (reverse acc) ++ " " ++ show n
+pickAritmeticTokensAux (TokOpenParen : t) balance acc = pickAritmeticTokensAux t (balance + 1) (TokOpenParen : acc)
+pickAritmeticTokensAux (TokCloseParen : t) 0 acc = (reverse acc, TokCloseParen : t)
+pickAritmeticTokensAux (TokCloseParen : t) balance acc = pickAritmeticTokensAux t (balance - 1) (TokCloseParen : acc)
+pickAritmeticTokensAux (h : t) balance acc
+    | isAritmeticToken h = pickAritmeticTokensAux t balance (h : acc)
+    | otherwise = (reverse acc, h : t)
+
+parseConstOrParen :: [Token] -> Maybe (Bexp, [Token])
+parseConstOrParen (TokTrue : tokens) = Just (TrueExp, tokens)
+parseConstOrParen (TokFalse : tokens) = Just (FalseExp, tokens)
+parseConstOrParen (TokOpenParen : tokens) = case parseAndOrMore tokens of
+  Just (bexp, TokCloseParen : restTokens) -> Just (bexp, restTokens)
+  _ -> error "Missing closing parenthesis"
+parseConstOrParen tokens = error $ "Unexpected tokens: " ++ show tokens
+
+parseLE :: [Token] -> Maybe (Bexp, [Token])
+parseLE (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
+parseLE tokens = 
+  case pickAritmeticTokens tokens of
+    ([], _) -> parseConstOrParen tokens
+    (aTokens, TokLE:rest) -> case pickAritmeticTokens rest of
+      ([], _) -> parseConstOrParen tokens
+      (aTokens2, rest2) -> Just (LeExp (selectAexpr aTokens) (selectAexpr aTokens2), rest2)
+    _ -> parseConstOrParen tokens
+
+parseIntEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseIntEqOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
+parseIntEqOrMore tokens =
+  case pickAritmeticTokens tokens of
+    ([], _) -> parseLE tokens
+    (aTokens, TokIntEqu:rest) -> case pickAritmeticTokens rest of
+      ([], _) -> parseLE tokens
+      (aTokens2, rest2) -> Just (EqArExp (selectAexpr aTokens) (selectAexpr aTokens2), rest2)
+    _ -> parseLE tokens
+
+parseNotOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseNotOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
+parseNotOrMore (TokNot : tokens) = case parseIntEqOrMore tokens of
+  Just (bexp, restTokens) -> Just (NotExp bexp, restTokens)
+parseNotOrMore tokens = parseIntEqOrMore tokens
+
+parseBoolEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseBoolEqOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
+parseBoolEqOrMore tokens = case parseNotOrMore tokens of
+  Just (bexp, TokBoolEqu : restTokens) -> case parseBoolEqOrMore restTokens of
+    Just (bexp2, restTokens2) -> Just (EqBoolExp bexp bexp2, restTokens2)
+  result -> result
+
+parseAndOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseAndOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
+parseAndOrMore tokens = case parseBoolEqOrMore tokens of
+  Just (bexp, TokAnd : restTokens) -> case parseAndOrMore restTokens of
+    Just (bexp2, restTokens2) -> Just (AndExp bexp bexp2, restTokens2)
+  result -> result
 
 -- Compiler functions
 compA :: Aexp -> Code
@@ -245,7 +440,7 @@ compB (LeExp a1 a2)   = compA a2 ++ compA a1 ++ [Le]
 compB (NotExp b)      = compB b ++ [Neg]
 compB (AndExp b1 b2)  = compB b2 ++ compB b1 ++ [And]
 
-compile :: [Stm] -> Code
+compile :: Program -> Code
 compile []                 = []
 compile (AssignStm var a : rest) = compA a ++ [Store var] ++ compile rest
 compile (SeqStm stms : rest)      = compile stms ++ compile rest
@@ -255,7 +450,60 @@ compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 parse :: String -> Program
 parse = buildData . lexer
 
+testParseStm :: IO ()
+testParseStm = do
+    let string = "x := 5; y := 2;"
+    print string
+    let tokens1 = lexer string
+    print tokens1
+    let result1 = buildData tokens1
+    print result1
+
+    let compiledCode1 = compile result1
+    print compiledCode1
+
+    print (testAssembler compiledCode1)
+
 {--
+testParseAexp :: IO ()
+testParseAexp = do
+    let string = "2"
+    print string
+    let tokens1 = lexer string
+    print tokens1
+    let result1 = parseAexp tokens1 
+    print result1
+
+    let compiledCode1 = compA result1
+    print compiledCode1
+
+    print (testAssembler compiledCode1)
+
+testParseBexp :: IO ()
+testParseBexp = do
+    let string = "(True = 3 == 4)"
+    print string
+    print ""
+    let tokens1 = lexer string
+    print tokens1
+    print ""
+    let result1 = parseBexp tokens1 
+    print result1
+    print ""
+
+    let compiledCode1 =  compB result1
+    print compiledCode1
+    print ""
+
+    print (testAssembler compiledCode1)
+--}
+{--
+buildData :: [Token] -> Program
+buildData [] = []
+buildData tokens = case parseStm tokens of
+    (stm, restTokens) -> stm : buildData restTokens
+--}
+
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
   where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
@@ -279,7 +527,6 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- If you test:
 -- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
 -- You should get an exception with the string: "Run-time error"
---}
 
 -- Example lexer test function
 testLexer :: String -> IO ()
@@ -288,28 +535,28 @@ testLexer input = do
     putStrLn $ "Input String: " ++ show input
     putStrLn $ "Tokens: " ++ show tokens
 
-main :: IO ()
-main = do
-    testLexer "another := 2;"
-
-{--
 testParser :: String -> (String, String)
 testParser programCode = (stack2Str stack, state2Str state)
   where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
---}
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
+-- testParser "x := 0 - 2;" == ("","x=-2")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
+-- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
+-- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
+-- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
+-- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2") 
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","fact=3628800,i=1")
+-- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") 
 
 {-- Examples to test the compiler without the parser
 main :: IO ()
 main = do
+  -- testLexer "x := 5; x := x - 1;"
   {--
     --Example 1 "x := 5; x := x - 1;" == ("","x=4")
     let expression = [AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
