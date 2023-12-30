@@ -384,6 +384,7 @@ parseConstOrParen (TokOpenParen : tokens) = case parseAndOrMore tokens of
 parseConstOrParen tokens = error $ "Unexpected tokens: " ++ show tokens
 
 parseLE :: [Token] -> Maybe (Bexp, [Token])
+parseLE (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
 parseLE tokens = 
   case pickAritmeticTokens tokens of
     ([], _) -> parseConstOrParen tokens
@@ -393,6 +394,7 @@ parseLE tokens =
     _ -> parseConstOrParen tokens
 
 parseIntEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseIntEqOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
 parseIntEqOrMore tokens =
   case pickAritmeticTokens tokens of
     ([], _) -> parseLE tokens
@@ -402,11 +404,13 @@ parseIntEqOrMore tokens =
     _ -> parseLE tokens
 
 parseNotOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseNotOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
 parseNotOrMore (TokNot : tokens) = case parseIntEqOrMore tokens of
   Just (bexp, restTokens) -> Just (NotExp bexp, restTokens)
 parseNotOrMore tokens = parseIntEqOrMore tokens
 
 parseBoolEqOrMore :: [Token] -> Maybe (Bexp, [Token])
+parseBoolEqOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
 parseBoolEqOrMore tokens = case parseNotOrMore tokens of
   Just (bexp, TokBoolEqu : restTokens) -> case parseBoolEqOrMore restTokens of
     Just (bexp2, restTokens2) -> Just (EqBoolExp bexp bexp2, restTokens2)
@@ -545,9 +549,9 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
 -- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
 -- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
--- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2") -- //FIXME bug no parseBexp
+-- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2") 
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") //FIXME bug no parseBexp
+-- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") 
 
 {-- Examples to test the compiler without the parser
 main :: IO ()
