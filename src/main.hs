@@ -268,9 +268,12 @@ parseStm tokens = case tokens of
           case parseStm restTokens3 of
             Just (stm1, TokElse : restTokens4) ->
               case parseStm restTokens4 of
-                Just (stm2, TokSemicolon : restTokens5) ->
+                Just (SeqStm stm2, TokSemicolon : restTokens5) ->
+                  Just (IfStm bexp stm1 (SeqStm stm2), restTokens5)
+                Just (SeqStm stm2, restTokens5) -> 
+                  error $ "Missing semicolon after 'else' statement" ++ show restTokens5
+                Just (stm2, restTokens5) -> 
                   Just (IfStm bexp stm1 stm2, restTokens5)
-                _ -> error "Missing semicolon after 'else' statement"
             _ -> error "Missing 'else' after 'then' statement"
         _ -> error "Missing 'then' after 'if' statement"
       Nothing -> error "Failed to parse boolean expression"
@@ -280,31 +283,32 @@ parseStm tokens = case tokens of
       Just (bexp, restTokens2) -> case restTokens2 of
         TokDo : restTokens3 ->
           case parseStm restTokens3 of
-            Just (stm, TokSemicolon : restTokens4) ->
-              Just (WhileStm bexp stm, restTokens4)
-            _ -> error "Missing semicolon after 'do' statement"
+              Just (SeqStm stm, TokSemicolon : restTokens5) ->
+                Just (WhileStm bexp (SeqStm stm), restTokens5)
+              Just (SeqStm stm, restTokens5) -> 
+                error $ "Missing semicolon after 'else' statement" ++ show restTokens5
+              Just (stm, restTokens5) -> 
+                Just (WhileStm bexp stm, restTokens5)
 
         _ -> error "Missing 'do' after 'while' statement"
       Nothing -> error "Failed to parse boolean expression"
 
   TokOpenParen : restTokens1 ->
     case parseSeqStm restTokens1 of
-      Just (stmList, TokSemicolon : restTokens2) ->
-        Just (SeqStm stmList, restTokens2)
-      _ -> error "Missing semicolon after sequence of statements"
+      Just (stmList, restTokens2) -> Just (SeqStm stmList, restTokens2)
   
   _ -> error $ "Unexpected error parsing statement: " ++ show tokens
 
 parseSeqStm :: [Token] -> Maybe ([Stm], [Token])
 parseSeqStm tokens =
-  case parseStm tokens of
-    Just (stm, restTokens1) -> case restTokens1 of
-      TokSemicolon : restTokens2 ->
-        case parseSeqStm restTokens2 of
-          Just (stmList, restTokens3) -> Just (stm : stmList, restTokens3)
-          Nothing -> Nothing
-      _ -> Just ([stm], restTokens1)
-    Nothing -> Just ([], tokens)
+  case tokens of
+    TokCloseParen : restTokens -> Just ([], restTokens)
+    _ -> case parseStm tokens of
+      Just (stm, restTokens1) -> case parseSeqStm restTokens1 of
+        Just ([], restTokens2) -> Just ([stm], restTokens2)
+        Just (stmList, restTokens2) -> Just (stm : stmList, restTokens2)
+        _ -> error $ "Unexpected error parsing restTokens1 in parseSeqStm: " ++ show restTokens1
+      _ -> error $ "Unexpected error parsing tokens in parseSeqStm: " ++ show tokens
 
 --parserA auxiliary functions
 parseSumOrDifOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
@@ -541,9 +545,9 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
 -- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
 -- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
--- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
+-- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2") -- //FIXME bug no parseBexp
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
--- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
+-- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") //FIXME bug no parseBexp
 
 {-- Examples to test the compiler without the parser
 main :: IO ()
