@@ -376,7 +376,9 @@ parse = buildData . lexer
 
 testParseAexp :: IO ()
 testParseAexp = do
-    let tokens1 = [TokNumber 2]
+    let string = "2"
+    print string
+    let tokens1 = lexer string
     print tokens1
     let result1 = parseAexp tokens1 
     print result1
@@ -388,7 +390,7 @@ testParseAexp = do
 
 testParseBexp :: IO ()
 testParseBexp = do
-    let string = "True = (2+1 == 4)"
+    let string = "(True = 3 == 4)"
     print string
     print ""
     let tokens1 = lexer string
