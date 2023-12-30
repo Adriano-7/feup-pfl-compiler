@@ -227,16 +227,37 @@ buildData :: [Token] -> Program
 buildData = undefined
 
 parseAexp :: [Token] -> Aexp
-parseAexp tokens = case parseSumOrProdOrIntOrPar tokens of
-    Just (expr, []) -> expr
-    _ -> error $ "Unparsed tokens: " ++ show tokens
+parseAexp tokens = case parseSumOrDifOrProdOrIntOrPar tokens of
+    Just (aexp, []) -> aexp
+    Just (_, rest) -> error $ "Unparsed tokens: " ++ show rest
+    _ -> error $ "Unexpected error parsing arithmetic expression: " ++ show tokens
 
 parseBexp :: [Token] -> Bexp
 parseBexp tokens = case parseAndOrMore tokens of
   Just (bexp, []) -> bexp
   Just ( _, rest) -> error $ "Unparsed tokens: " ++ show rest
+  _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
 
 --parserA auxiliary functions
+parseSumOrDifOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseSumOrDifOrProdOrIntOrPar tokens =
+  case parseProdOrIntOrPar tokens of
+    Just (expr1, restTokens1) ->
+      parseSumOrDifOrProdOrIntOrParAux expr1 restTokens1
+    _ -> Nothing
+
+parseSumOrDifOrProdOrIntOrParAux :: Aexp -> [Token] -> Maybe (Aexp, [Token])
+parseSumOrDifOrProdOrIntOrParAux expr1 tokens =
+  case tokens of
+    TokAdd : restTokens1 -> do
+      (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
+      parseSumOrDifOrProdOrIntOrParAux (AddExp expr1 expr2) restTokens2
+    TokSub : restTokens1 -> do
+      (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
+      parseSumOrDifOrProdOrIntOrParAux (SubExp expr1 expr2) restTokens2
+    _ -> Just (expr1, tokens)
+
+
 parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
 parseIntOrParenExpr (TokNumber n : restTokens)
   = Just (NumExp n, restTokens)
@@ -245,7 +266,7 @@ parseIntOrParenExpr (TokVar var : restTokens)
   = Just (VarExp var, restTokens)
 
 parseIntOrParenExpr (TokOpenParen : restTokens1)
-  = case parseSumOrProdOrIntOrPar restTokens1 of
+  = case parseSumOrDifOrProdOrIntOrPar restTokens1 of
     Just (expr, TokCloseParen : restTokens2) ->
       Just (expr, restTokens2)
     Just _ -> Nothing
@@ -259,21 +280,6 @@ parseProdOrIntOrPar tokens
       case parseProdOrIntOrPar restTokens1 of
         Just (expr2, restTokens2) ->
           Just (MulExp expr1 expr2, restTokens2)
-        _ -> Nothing
-    result -> result
-
-parseSumOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
-parseSumOrProdOrIntOrPar tokens
-  = case parseProdOrIntOrPar tokens of
-    Just (expr1, TokAdd : restTokens1) ->
-      case parseSumOrProdOrIntOrPar restTokens1 of
-        Just (expr2, restTokens2) ->
-          Just (AddExp expr1 expr2, restTokens2)
-        _ -> Nothing
-    Just (expr1, TokSub : restTokens1) ->
-      case parseSumOrProdOrIntOrPar restTokens1 of
-        Just (expr2, restTokens2) ->
-          Just (SubExp expr1 expr2, restTokens2)
         _ -> Nothing
     result -> result
 
