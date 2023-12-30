@@ -281,13 +281,24 @@ parseSumOrProdOrIntOrPar tokens
 isAritmeticToken :: Token -> Bool
 isAritmeticToken (TokNumber _) = True
 isAritmeticToken (TokVar _) = True
-isAritmeticToken tok = tok `elem` [TokOpenParen, TokCloseParen, TokAdd, TokSub, TokMul]
+isAritmeticToken tok = tok `elem` [ TokAdd, TokSub, TokMul]
 
 pickAritmeticTokens :: [Token] -> ([Token], [Token])
-pickAritmeticTokens [] = ([], [])
-pickAritmeticTokens (h:t) | isAritmeticToken h = (h:aTokens, restTokens)
-                          | otherwise = ([], h:t)
-  where (aTokens, restTokens) = pickAritmeticTokens t
+pickAritmeticTokens (TokOpenParen:rest) = ([], TokOpenParen:rest)
+pickAritmeticTokens tokens = pickAritmeticTokensAux tokens 0 []
+
+
+pickAritmeticTokensAux :: [Token] -> Int -> [Token] -> ([Token], [Token])
+pickAritmeticTokensAux [] 0 acc = (reverse acc, [])
+pickAritmeticTokensAux [] _ _ = error "Unbalanced parentheses"
+pickAritmeticTokensAux (h:t) balance acc
+    | h == TokOpenParen = let (innerTokens, restTokens) = pickAritmeticTokensAux t (balance + 1) [h]
+                          in pickAritmeticTokensAux restTokens balance (reverse innerTokens ++ acc)
+    | h == TokCloseParen = if balance == 0
+                           then (reverse acc, h:t)
+                           else pickAritmeticTokensAux t (balance - 1) (h:acc)
+    | isAritmeticToken h = pickAritmeticTokensAux t balance (h:acc)
+    | otherwise = (reverse acc, h:t)
 
 parseConstOrParen :: [Token] -> Maybe (Bexp, [Token])
 parseConstOrParen (TokTrue : tokens) = Just (TrueExp, tokens)
@@ -373,7 +384,7 @@ testParseAexp = do
 
 testParseBexp :: IO ()
 testParseBexp = do
-    let string = "1 == 0+1 = 2+1 == 3"
+    let string = "(1 == 0+1 = (2+1 == 4))"
     print string
     print ""
     let tokens1 = lexer string
