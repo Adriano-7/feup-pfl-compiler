@@ -180,9 +180,9 @@ lexer input@(c:cs)
     | c == '+' = TokAdd : lexer cs
     | c == '-' = TokSub : lexer cs
     | c == '*' = TokMul : lexer cs
+    | c == ';' = TokSemicolon : lexer cs
     | c == ':' = lexAssign cs
     | c == '=' = lexEqual cs
-    | c == ';' = TokSemicolon : lexer cs
     | c == '<' = lexLessEqual cs
     | otherwise = error $ "Unexpected character: " ++ [c]
 
@@ -223,6 +223,10 @@ lexAnd :: String -> [Token]
 lexAnd rest@(c:cs)
     | take 2 rest == "and" = TokAnd : lexer (drop 3 rest)
     | otherwise = error $ "Unexpected character after 'a': " ++ rest
+
+
+parse :: String -> Program
+parse = buildData . lexer
 
 buildData :: [Token] -> Program
 buildData tokens = 
@@ -446,9 +450,6 @@ compile (AssignStm var a : rest) = compA a ++ [Store var] ++ compile rest
 compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
-
-parse :: String -> Program
-parse = buildData . lexer
 
 testParseStm :: IO ()
 testParseStm = do
