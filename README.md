@@ -24,22 +24,22 @@ data Inst =
 - Push n: insere o valor n na stack
 - Add: soma os dois valores no topo da stack e insere o resultado na stack
 - Mult: multiplica os dois valores no topo da stack e insere o resultado no topo da stack
-- Sub: subtrai os dois valores no topo da stack e insere o resultado no topo da stack
+- Sub: subtrai o valor no topo da stack com o 2º valor e insere o resultado na stack
 - Tru: insere o valor tt na stack
 - Fals: insere o valor ff na stack
 - Equ: verifica se os dois valores no topo da stack são iguais e insere o resultado na stack
-- Le: verifica se o segundo valor no topo da stack é menor que o primeiro e insere o resultado na stack
+- Le: verifica se valor no topo da stack é menor ou igual que o segundo e insere o resultado na stack
 - And: verifica se os dois valores no topo da stack são iguais a tt e insere o resultado na stack
-- Neg: verifica se o valor no topo da stack é igual a tt e insere o resultado na stack
+- Neg: inverte o valor do booleano que se encontra no topo da stack
 - Fetch var: insere o valor associado à variável var na stack
 - Store var: remove o valor no topo da stack e insere o valor associado à variável var no estado
-- Noop
+- Noop: Instrução sem efeitos
 - Branch c1 c2: se o valor no topo da stack for tt, executa a lista de instruções c1, caso contrário executa a lista de instruções c2
 - Loop c1 c2: executa c1, colocando tt ou ff no topo da stack. Se tt estiver no topo da stack, executa c2 e volta a executar Loop c1 c2, caso contrário, termina a execução
 
 **State:**
 
-O estado é representado por uma bst, onde cada nó contém uma chave (que corresponderá ao nome de uma variável), um valor associado e duas sub-árvores. 
+O estado é representado por uma Binary Search Tree, onde cada nó contém uma chave (que corresponderá ao nome de uma variável), um valor associado e duas sub-árvores. 
 
 ```haskell	
 data State = Empty 
@@ -126,7 +126,7 @@ O nosso lexer funciona da seguinte forma:
 - **Operadores de um caracter, parênteses e ponto e vírgula:** a função `lexer` adiciona o token correspondente à lista de tokens 
 - **Operadores com mais do que um caracter:** operadores como o  `:=`, `==`, `=` e o `<=` são tratados pelas funções `lexAssign`, `lexEqual` e `lexLessEqual` respetivamente
 
-Após cada um dos passos anteriores, a função `lexer` chama recursivamente a função `lexer` com a string restante até que a string seja vazia.
+Após cada um dos passos anteriores, a função `lexer` chama-se recursivamente passando a string restante até que a string seja vazia.
 
 ### Parser
 Responsável por transformar a lista de tokens numa árvore sintática. É nesta etapa que tratamos a precedência dos operadores. Definimos três estruturas de dados distintas para representar expressões aritméticas, expressões booleanas e instruções.
@@ -155,14 +155,14 @@ data Stm = AssignStm String Aexp -- Atribuição
           deriving Show
 ```
 
-A função `parser` aplica a função `lexer` ao código e chama a função `buildData` com a lista de tokens resultante. A função `buildData` recebe uma lista de tokens e retorna uma árvore sintática.
+A função `parser` aplica a função `lexer` à string e chama a função `buildData` com a lista de tokens resultante. A função `buildData` recebe essa lista de tokens e retorna uma árvore sintática.
 
 ```haskell 
 parser :: String -> Program
 parser = buildData . lexer
 ```
 
-A função `buildData` chama recursivamente a função `parseStm` até que a lista de tokens seja vazia e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
+A função `buildData` chama repetidamente a função `parseStm` até que a lista de tokens restantes seja vazia e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
 
 ```haskell
 buildData :: [Token] -> Program
@@ -174,7 +174,8 @@ buildData tokens =
 ```
 
 #### Parser de instruções
-Por sua vez, a função `parseStm` é responsável por processar as instruções, que podem ser de quatro tipos distintos: atribuição, if-then-else, while e sequência de instruções. Dependendo do tipo de instrução a função `parseStm` chama recursivamente a função `parseAexp`, `parseBexp` ou `parseSeqStm` como podemos observar do excerto de código seguinte.
+Por sua vez, a função `parseStm` é responsável por processar as instruções, que podem ser de quatro tipos distintos: atribuição, if-then-else, while e sequência de instruções. Dependendo do tipo de instrução a função `parseStm` chama depois a função `parseAexp`, `parseBexp` ou `parseSeqStm` como podemos observar do excerto de código seguinte.
+
 
 ```haskell
 data Stm = AssignStm String Aexp 
@@ -187,6 +188,8 @@ parseStm :: [Token] -> Maybe (Stm, [Token])
 parseStm tokens = case tokens of
   TokVar var : TokAssign : restTokens ->
     case parseAexp restTokens of
+      Just (aexp, restTokens1) -> case restTokens1 of
+        TokSemicolon : restTokens2 -> Just (AssignStm var aexp, restTokens2)
       ...
 
   TokIf : restTokens1 ->
@@ -195,16 +198,31 @@ parseStm tokens = case tokens of
           case parseStm restTokens3 of
             ...
               case parseStm restTokens4 of
+                Just (SeqStm stm2, TokSemicolon : restTokens5) ->
+                  Just (IfStm bexp stm1 (SeqStm stm2), restTokens5)
+                Just (SeqStm stm2, restTokens5) -> 
+                  error $ "Missing semicolon after 'else' statement" ++ show restTokens5
+                Just (stm2, restTokens5) -> 
+                  Just (IfStm bexp stm1 stm2, restTokens5)
                 ...
+
   TokWhile : restTokens1 ->
     case parseBexp restTokens1 of
         ...
           case parseStm restTokens3 of
-              ...
+              Just (SeqStm stm, TokSemicolon : restTokens5) ->
+                Just (WhileStm bexp (SeqStm stm), restTokens5)
+              Just (SeqStm stm, restTokens5) -> 
+                error $ "Missing semicolon after 'else' statement" ++ show restTokens5
+              Just (stm, restTokens5) -> 
+                Just (WhileStm bexp stm, restTokens5)
 
   TokOpenParen : restTokens1 ->
     case parseSeqStm restTokens1 of
-      ...
+      case parseSeqStm restTokens1 of
+        Just (stmList, restTokens2) -> Just (SeqStm stmList, restTokens2)
+
+  _ -> error $ "Unexpected error parsing statement: " ++ show tokens
 ```
 
 #### Parser de expressões aritméticas
@@ -214,14 +232,13 @@ A função `parseAexp` recebe uma lista de tokens, chama a função `parseSumOrD
 
 
 #### Parser de expressões booleanas
-A função `parseBexp` recebe uma lista de tokens, chama a função `parseAndOrMore`. Se a lista de tokens tiver sido processada na totalidade, a função `parseBexp` retorna. Caso contrário, verifica se o primeiro token é um `TokThen`, `TokElse` ou `TokDo`. Se for, a função `parseBexp` é chamada recursivamente com a lista de tokens restante. Caso contrário, é lançado um erro.
+A função `parseBexp` recebe uma lista de tokens, chama a função `parseAndOrMore`. Se a lista de tokens tiver sido processada na totalidade, a função `parseBexp` retorna. De igual forma, verifica se o primeiro token não consumido pelo parser é um `TokThen`  ou `TokDo`. Se for, a função retorna com o resto dos tokens. Caso contrário, é lançado um erro.
 
 ```haskell
 parseBexp :: [Token] -> Maybe (Bexp, [Token])
 parseBexp tokens = case parseAndOrMore tokens of
   Just (bexp, []) -> Just (bexp, [])
   Just (bexp, TokThen:rest) -> Just (bexp, TokThen:rest)
-  Just (bexp, TokElse:rest) -> Just (bexp, TokElse:rest)
   Just (bexp, TokDo:rest) -> Just (bexp, TokDo:rest)
   Just ( _, rest) -> error $ "Unparsed tokens (parseB): " ++ show rest
   _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
@@ -230,7 +247,7 @@ parseBexp tokens = case parseAndOrMore tokens of
 ### Compilador
 O compilador será responsável pelo processamento de uma lista de ASTs, gerando o código para a máquina de baixo nível implementada na primeira parte do projeto.
 
-Enquanto a AST não estiver vazia, a função `compile` trata a instrução no topo da lista, invocando as funções `compA` ou `compB`. Após o processamento da instrução, a função compile é chamada recursivamente com a lista de instruções restantes.
+Enquanto a esta lista não estiver vazia, a função `compile` compila a árvore no topo da lista, invocando as funções `compA` ou `compB`. Após o processamento da instrução, a função compile é chamada recursivamente com a lista de instruções restantes.
 
 A função `compA` é responsável por processar as expressões aritméticas(NumExp, VarExp, AddExp, SubExp e MulExp) enquanto a função `compB` é responsável por processar as expressões booleanas(TrueExp, FalseExp, EqArExp, EqBoolExp, LeExp, NotExp e AndExp).
 
