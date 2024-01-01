@@ -20,6 +20,23 @@ data Inst =
   Branch Code Code | Loop Code Code
   deriving Show
 ```
+
+- Push n: insere o valor n na stack
+- Add: soma os dois valores no topo da stack e insere o resultado na stack
+- Mult: multiplica os dois valores no topo da stack e insere o resultado no topo da stack
+- Sub: subtrai os dois valores no topo da stack e insere o resultado no topo da stack
+- Tru: insere o valor tt na stack
+- Fals: insere o valor ff na stack
+- Equ: verifica se os dois valores no topo da stack são iguais e insere o resultado na stack
+- Le: verifica se o segundo valor no topo da stack é menor que o primeiro e insere o resultado na stack
+- And: verifica se os dois valores no topo da stack são iguais a tt e insere o resultado na stack
+- Neg: verifica se o valor no topo da stack é igual a tt e insere o resultado na stack
+- Fetch var: insere o valor associado à variável var na stack
+- Store var: remove o valor no topo da stack e insere o valor associado à variável var no estado
+- Noop
+- Branch c1 c2: se o valor no topo da stack for tt, executa a lista de instruções c1, caso contrário executa a lista de instruções c2
+- Loop c1 c2: executa c1, colocando tt ou ff no topo da stack. Se tt estiver no topo da stack, executa c2 e volta a executar Loop c1 c2, caso contrário, termina a execução
+
 **State:**
 
 O estado é representado por uma bst, onde cada nó contém uma chave (que corresponderá ao nome de uma variável), um valor associado e duas sub-árvores. 
@@ -55,24 +72,6 @@ Nesta estrutura de dados existem as seguintes operações:
 ### Lógica do programa	
 
 A função `run` recebe os argumentos `(code, stack, state)`, enquanto o code não for uma lista vazia, a função `run` executa a instrução que se encontra no topo da lista code e chama recursivamente a função `run` com a lista de instruções restantes.
-
-As instruções suportadas pela máquina são as seguintes:
-
-- Push n: insere o valor n na stack
-- Add: soma os dois valores no topo da stack e insere o resultado na stack
-- Mult: multiplica os dois valores no topo da stack e insere o resultado no topo da stack
-- Sub: subtrai os dois valores no topo da stack e insere o resultado no topo da stack
-- Tru: insere o valor tt na stack
-- Fals: insere o valor ff na stack
-- Equ: verifica se os dois valores no topo da stack são iguais e insere o resultado na stack
-- Le: verifica se o segundo valor no topo da stack é menor que o primeiro e insere o resultado na stack
-- And: verifica se os dois valores no topo da stack são iguais a tt e insere o resultado na stack
-- Neg: verifica se o valor no topo da stack é igual a tt e insere o resultado na stack
-- Fetch var: insere o valor associado à variável var na stack
-- Store var: remove o valor no topo da stack e insere o valor associado à variável var no estado
-- Noop
-- Branch c1 c2: se o valor no topo da stack for tt, executa a lista de instruções c1, caso contrário executa a lista de instruções c2
-- Loop c1 c2: executa c1, colocando tt ou ff no topo da stack. Se tt estiver no topo da stack, executa c2 e volta a executar Loop c1 c2, caso contrário, termina a execução
 
 ## Parte 2: Compilador de uma linguagem imperativa
 Nesta parte do projeto, foi-nos pedido que implementássemos um compilador para uma linguagem imperativa. Para tal, foram necessárias três etapas.
