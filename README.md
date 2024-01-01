@@ -72,7 +72,7 @@ As instruções suportadas pela máquina são as seguintes:
 - Store var: remove o valor no topo da stack e insere o valor associado à variável var no estado
 - Noop
 - Branch c1 c2: se o valor no topo da stack for tt, executa a lista de instruções c1, caso contrário executa a lista de instruções c2
-- Loop c1 c2: executa a lista de instruções c1, caso o valor no topo da stack seja tt, executa a lista de instruções c2 e chama recursivamente a função `run`
+- Loop c1 c2: executa c1, colocando tt ou ff no topo da stack. Se tt estiver no topo da stack, executa c2 e volta a executar Loop c1 c2, caso contrário, termina a execução
 
 ## Parte 2: Compilador de uma linguagem imperativa
 Nesta parte do projeto, foi-nos pedido que implementássemos um compilador para uma linguagem imperativa. Para tal, foram necessárias três etapas.
@@ -116,14 +116,14 @@ O nosso lexer funciona da seguinte forma:
 - **Letras:** a função `lexIdentifier` verifica se a string é uma palavra reservada ou uma variável(começada por uma letra minúscula) e retorna o token correspondente
 - **Números:** a função `lexNumber` retorna o token TokNumber (número)
 - **Operadores de um caracter, parênteses e ponto e vírgula:** a função `lexer` adiciona o token correspondente à lista de tokens 
-- **Operadores com mais do que um caracter:** operadores como o `:=`, `==` e o `<=` são tratados pelas funções `lexAssign`, `lexEqual` e `lexLessEqual` respetivamente
+- **Operadores com mais do que um caracter:** operadores como o  `:=`, `==`, `=` e o `<=` são tratados pelas funções `lexAssign`, `lexEqual` e `lexLessEqual` respetivamente
 
 Após cada um dos passos anteriores, a função `lexer` chama recursivamente a função `lexer` com a string restante até que a string seja vazia.
 
+#### Exemplo do resultado da função lexer
 ```haskell
---Exemplo do resultado da função lexer
 x := 5; x := x - 1;
-[AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
+[TokVar "x",TokAssign,TokNumber 5,TokSemicolon,TokVar "x",TokAssign,TokVar "x",TokSub,TokNumber 1,TokSemicolon]
 ```
 
 ### Parser
@@ -206,11 +206,10 @@ parseStm tokens = case tokens of
 ```
 
 #### Parser de expressões aritméticas
-No parsing de funções aritméticas usamos um conjunto de funções auxiliares que nos permitem tratar a precedência dos operadores. Os operadores de maior precedência (Multiplicação e parênteses) têm que ser processados primeiro. 
+No parsing de funções aritméticas usamos um conjunto de funções auxiliares que nos permitem tratar a precedência dos operadores. A precedência dos operadores é tratada da seguinte forma: primeiro são processadas as expressões entre parênteses, depois as multiplicações e por fim as somas e subtrações.
 
 A função `parseAexp` recebe uma lista de tokens, chama a função `parseSumOrDifOrProdOrIntOrPar` e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
 
-De forma a tratar a precedência dos operadores, a função `parseSumOrDifOrProdOrIntOrPar` chama a função `parseProdOrIntOrPar` que trata os operadores de maior precedência. Só após o processamento dos operadores de maior precedência é que é chamada a função `parseSumOrDiff` que trata os operadores de menor precedência.
 
 #### Parser de expressões booleanas
 A função `parseBexp` recebe uma lista de tokens, chama a função `parseAndOrMore` e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
@@ -225,19 +224,15 @@ parseBexp tokens = case parseAndOrMore tokens of
   Just ( _, rest) -> error $ "Unparsed tokens (parseB): " ++ show rest
   _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
 ```
-A função `parseAndOrMore` verifica se a lista de tokens começa com um parênteses, neste caso chama a função `parseConstOrParen`. Caso contrário, chama a função `parseBoolEqOrMore` que trata os operadores de menor precedência.
 
+#### Exemplo do resultado da função parser
 ```haskell
-parseAndOrMore :: [Token] -> Maybe (Bexp, [Token])
-parseAndOrMore (TokOpenParen:rest) = parseConstOrParen (TokOpenParen:rest)
-parseAndOrMore tokens = case parseBoolEqOrMore tokens of
-  Just (bexp, TokAnd : restTokens) -> case parseAndOrMore restTokens of
-    Just (bexp2, restTokens2) -> Just (AndExp bexp bexp2, restTokens2)
-  result -> result
+x := 5; x := x - 1;
+[AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
 ```
 
 ### Compilador
-O compilador será responsável pelo processamento da AST, gerando o código para a máquina de baixo nível implementada na primeira parte do projeto.
+O compilador será responsável pelo processamento de uma lista de ASTs, gerando o código para a máquina de baixo nível implementada na primeira parte do projeto.
 
 Foram implementadas duas funções auxiliares, `compA` e `compB`, que recebem uma expressão aritmética ou booleana, respetivamente, e retornam o código correspondente.
 
@@ -263,9 +258,15 @@ No caso da função `compileB` temos os seguintes casos:
 - NotExp: chama recursivamente a função `compileB` com a expressão booleana e adiciona o token Neg à lista de instruções
 - AndExp: chama recursivamente a função `compileB` com as duas expressões booleanas e adiciona o token And à lista de instruções
 
+#### Exemplo do resultado da função compile
+```haskell
+x := 5; x := x - 1;
+[Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"]
+```
+
 ## Execução do código
 Para proceder à execução do programa, é necessário ter instalado o [GHC](https://www.haskell.org/ghc/). Após a instalação, basta executar o seguinte comando na pasta src:
 
 ```haskell
-ghci .\main.hs
+ghci main.hs
 ```
