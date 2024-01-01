@@ -22,7 +22,7 @@ data Inst =
 ```
 **State:**
 
-O estado é representado por uma bst, onde cada nó contém uma variável, um valor associado e duas sub-árvores. 
+O estado é representado por uma bst, onde cada nó contém uma chave (que corresponderá ao nome de uma variável), um valor associado e duas sub-árvores. 
 
 ```haskell	
 data State = Empty 
