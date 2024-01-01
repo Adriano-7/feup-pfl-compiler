@@ -212,7 +212,7 @@ A função `parseAexp` recebe uma lista de tokens, chama a função `parseSumOrD
 
 
 #### Parser de expressões booleanas
-A função `parseBexp` recebe uma lista de tokens, chama a função `parseAndOrMore` e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
+A função `parseBexp` recebe uma lista de tokens, chama a função `parseAndOrMore`. Se a lista de tokens tiver sido processada na totalidade, a função `parseBexp` retorna. Caso contrário, verifica se o primeiro token é um `TokThen`, `TokElse` ou `TokDo`. Se for, a função `parseBexp` é chamada recursivamente com a lista de tokens restante. Caso contrário, é lançado um erro.
 
 ```haskell
 parseBexp :: [Token] -> Maybe (Bexp, [Token])
