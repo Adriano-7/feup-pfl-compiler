@@ -5,7 +5,7 @@ Grupo T08_G02:
 - Tomás Alexandre Soeiro Vicente (up202108717) - [TBD]
 
 ## Descrição do trabalho
-Este projeto encontra-se dividido em duas partes. Num primeiro momento, foi-nos pedido que implementássemos uma máquina de baixo nível que suportasse instruções aritméticas, booleanas e de controlo de fluxo. Posteriormente foi-nos solicitado a implementação de um compilador, com a finalidade de compilar uma linguagem imperativa para a máquina de baixo nível previamente desenvolvida.
+Este projeto encontra-se dividido em duas partes. Num primeiro momento, foi-nos pedido que implementássemos uma máquina de baixo nível que suportasse instruções de cálculo aritmético, de cálculo booleano e de controlo de fluxo. Posteriormente, foi-nos solicitado a implementação de um compilador, com a finalidade de compilar uma linguagem imperativa para a máquina de baixo nível previamente desenvolvida.
 
 ## Parte 1: Implementação de uma máquina de baixo nível
 ### Estrutura de Dados
@@ -22,7 +22,7 @@ data Inst =
 ```
 **State:**
 
-O estado é representado por uma bst, onde cada nó contém uma variável, um valor associado e duas sub-árvores. 
+O estado é representado por uma bst, onde cada nó contém uma chave (que corresponderá ao nome de uma variável), um valor associado e duas sub-árvores. 
 
 ```haskell	
 data State = Empty 
@@ -54,7 +54,7 @@ Nesta estrutura de dados existem as seguintes operações:
 
 ### Lógica do programa	
 
-A função `run` recebe os argumentos (code, stack, state), enquanto o code não for uma lista vazia, a função `run` executa a instrução que se encontra no topo da lista code e chama recursivamente a função `run` com a lista de instruções restantes.
+A função `run` recebe os argumentos `(code, stack, state)`, enquanto o code não for uma lista vazia, a função `run` executa a instrução que se encontra no topo da lista code e chama recursivamente a função `run` com a lista de instruções restantes.
 
 As instruções suportadas pela máquina são as seguintes:
 
