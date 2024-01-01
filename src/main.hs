@@ -3,7 +3,6 @@ import Data.List (isInfixOf)
 
 import Stack (Stack, push, pop, top, fromList, isEmpty, newStack,)
 import State (State, newState, insert, load, fromList, toStr)
-import Control.Monad.Trans.Select (select)
 
 data Inst =
   Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
@@ -129,9 +128,9 @@ data Aexp = NumExp Integer         -- Numeric constant
 -- Boolean expressions
 data Bexp = TrueExp                -- True constant
           | FalseExp               -- False constant
-          | EqArExp Aexp Aexp         -- Equality for arithmetic expressions
-          | EqBoolExp Bexp Bexp         -- Equality for boolean expressions
-          | LeExp Aexp Aexp         -- Less than or equal
+          | EqArExp Aexp Aexp      -- Equality for arithmetic expressions
+          | EqBoolExp Bexp Bexp    -- Equality for boolean expressions
+          | LeExp Aexp Aexp        -- Less than or equal
           | NotExp Bexp            -- Logical negation
           | AndExp Bexp Bexp       -- Logical AND
           deriving Show
@@ -250,7 +249,6 @@ parseBexp :: [Token] -> Maybe (Bexp, [Token])
 parseBexp tokens = case parseAndOrMore tokens of
   Just (bexp, []) -> Just (bexp, [])
   Just (bexp, TokThen:rest) -> Just (bexp, TokThen:rest)
-  Just (bexp, TokElse:rest) -> Just (bexp, TokElse:rest)
   Just (bexp, TokDo:rest) -> Just (bexp, TokDo:rest)
   Just ( _, rest) -> error $ "Unparsed tokens (parseB): " ++ show rest
   _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
@@ -449,60 +447,6 @@ compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
 
-testParseStm :: IO ()
-testParseStm = do
-    let string = "x := 5; y := 2;"
-    print string
-    let tokens1 = lexer string
-    print tokens1
-    let result1 = buildData tokens1
-    print result1
-
-    let compiledCode1 = compile result1
-    print compiledCode1
-
-    print (testAssembler compiledCode1)
-
-{--
-testParseAexp :: IO ()
-testParseAexp = do
-    let string = "2"
-    print string
-    let tokens1 = lexer string
-    print tokens1
-    let result1 = parseAexp tokens1 
-    print result1
-
-    let compiledCode1 = compA result1
-    print compiledCode1
-
-    print (testAssembler compiledCode1)
-
-testParseBexp :: IO ()
-testParseBexp = do
-    let string = "(True = 3 == 4)"
-    print string
-    print ""
-    let tokens1 = lexer string
-    print tokens1
-    print ""
-    let result1 = parseBexp tokens1 
-    print result1
-    print ""
-
-    let compiledCode1 =  compB result1
-    print compiledCode1
-    print ""
-
-    print (testAssembler compiledCode1)
---}
-{--
-buildData :: [Token] -> Program
-buildData [] = []
-buildData tokens = case parseStm tokens of
-    (stm, restTokens) -> stm : buildData restTokens
---}
-
 testAssembler :: Code -> (String, String)
 testAssembler code = (stack2Str stack, state2Str state)
   where (_, stack, state) = run (code, createEmptyStack, createEmptyState)
@@ -527,13 +471,6 @@ testAssembler code = (stack2Str stack, state2Str state)
 -- testAssembler [Tru,Tru,Store "y", Fetch "x",Tru]
 -- You should get an exception with the string: "Run-time error"
 
--- Example lexer test function
-testLexer :: String -> IO ()
-testLexer input = do
-    let tokens = lexer input
-    putStrLn $ "Input String: " ++ show input
-    putStrLn $ "Tokens: " ++ show tokens
-
 testParser :: String -> (String, String)
 testParser programCode = (stack2Str stack, state2Str state)
   where (_,stack,state) = run(compile (parse programCode), createEmptyStack, createEmptyState)
@@ -551,39 +488,3 @@ testParser programCode = (stack2Str stack, state2Str state)
 -- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2") 
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1") 
-
-{-- Examples to test the compiler without the parser
-main :: IO ()
-main = do
-  -- testLexer "x := 5; x := x - 1;"
-  {--
-    --Example 1 "x := 5; x := x - 1;" == ("","x=4")
-    let expression = [AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
-  --}
-  {--
-    -- Example 2 "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
-    let expression = [IfStm (AndExp (NotExp TrueExp) (EqBoolExp (LeExp (NumExp 2) (NumExp 5)) (EqArExp (NumExp 3) (NumExp 4)))) (AssignStm "x" (NumExp 1)) (AssignStm "y" (NumExp 2))]
-  --}
-  {--
-    -- Example 3 "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)" == ("","x=1")
-    let expression = [AssignStm "x" (NumExp 42), IfStm (LeExp (VarExp "x") (NumExp 43)) (AssignStm "x" (NumExp 1)) (SeqStm [AssignStm "x" (NumExp 33), AssignStm "x" (AddExp (VarExp "x") (NumExp 1))])]
-  --}
-  {--
-    -- Example 4 "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
-    let expression = [AssignStm "x" (NumExp 42), IfStm (LeExp (VarExp "x") (NumExp 43)) (AssignStm "x" (NumExp 1)) (AssignStm "x" (NumExp 33)), AssignStm "x" (AddExp (VarExp "x") (NumExp 1))]
-  --}
-  {--
-    -- Example 5 "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
-    let expression = [AssignStm "x" (NumExp 42), IfStm (LeExp (VarExp "x") (NumExp 43)) (AssignStm "x" (NumExp 1)) (AssignStm "x" (NumExp 33)), AssignStm "x" (AddExp (VarExp "x") (NumExp 1)), AssignStm "z" (AddExp (VarExp "x") (VarExp "x"))]
-  --}
-  {--
-    -- Example 6 "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
-    let expression = [AssignStm "x" (NumExp 2), AssignStm "y" (MulExp (SubExp (VarExp "x") (NumExp 3)) (AddExp (NumExp 4) (MulExp (NumExp 2) (NumExp 3)))), AssignStm "z" (AddExp (VarExp "x") (MulExp (VarExp "x") (NumExp 2)))]
-  --}
-    --Example 7 "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
-    let expression = [AssignStm "i" (NumExp 10), AssignStm "fact" (NumExp 1), WhileStm (NotExp (EqArExp (VarExp "i") (NumExp 1))) (SeqStm [AssignStm "fact" (MulExp (VarExp "fact") (VarExp "i")), AssignStm "i" (SubExp (VarExp "i") (NumExp 1))])]
-    let compiledCode = compile expression
-
-    print compiledCode
-    print (testAssembler compiledCode)
---}
