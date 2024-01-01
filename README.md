@@ -5,7 +5,7 @@ Grupo T08_G02:
 - Tomás Alexandre Soeiro Vicente (up202108717) - [TBD]
 
 ## Descrição do trabalho
-Este projeto encontra-se dividido em duas partes. Num primeiro momento, foi-nos pedido que implementássemos uma máquina de baixo nível que suportasse instruções aritméticas, booleanas e de controlo de fluxo. Posteriormente foi-nos solicitado a implementação de um compilador, com a finalidade de compilar uma linguagem imperativa para a máquina de baixo nível previamente desenvolvida.
+Este projeto encontra-se dividido em duas partes. Num primeiro momento, foi-nos pedido que implementássemos uma máquina de baixo nível que suportasse instruções de cálculo aritmético, de cálculo booleano e de controlo de fluxo. Posteriormente, foi-nos solicitado a implementação de um compilador, com a finalidade de compilar uma linguagem imperativa para a máquina de baixo nível previamente desenvolvida.
 
 ## Parte 1: Implementação de uma máquina de baixo nível
 ### Estrutura de Dados
