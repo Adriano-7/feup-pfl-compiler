@@ -78,6 +78,15 @@ Nesta parte do projeto, foi-nos pedido que implementássemos um compilador para 
 
 <img src="docs/Lexer-Parser-Compiler.png" alt="drawing" width="500"/>
 
+
+| String        | x := 5; x := x - 1;                                          |
+|-------------------|---------------------------------------------------------------|
+| Lexer Result      | [TokVar "x",TokAssign,TokNumber 5,TokSemicolon,TokVar "x",TokAssign,TokVar "x",TokSub,TokNumber 1,TokSemicolon] |
+| Parser Result     | [AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))] |
+| Compile Result    | [Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"]             |
+
+
+
 ### Lexer 
 Responsável por atribuir tokens a cada elemento da linguagem. 
 No nosso caso, a função `lexer` recebe uma string e retorna uma lista de tokens.
@@ -118,12 +127,6 @@ O nosso lexer funciona da seguinte forma:
 - **Operadores com mais do que um caracter:** operadores como o  `:=`, `==`, `=` e o `<=` são tratados pelas funções `lexAssign`, `lexEqual` e `lexLessEqual` respetivamente
 
 Após cada um dos passos anteriores, a função `lexer` chama recursivamente a função `lexer` com a string restante até que a string seja vazia.
-
-#### Exemplo do resultado da função lexer
-```haskell
-x := 5; x := x - 1;
-[TokVar "x",TokAssign,TokNumber 5,TokSemicolon,TokVar "x",TokAssign,TokVar "x",TokSub,TokNumber 1,TokSemicolon]
-```
 
 ### Parser
 Responsável por transformar a lista de tokens numa árvore sintática. É nesta etapa que tratamos a precedência dos operadores. Definimos três estruturas de dados distintas para representar expressões aritméticas, expressões booleanas e instruções.
@@ -224,24 +227,12 @@ parseBexp tokens = case parseAndOrMore tokens of
   _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
 ```
 
-#### Exemplo do resultado da função parser
-```haskell
-x := 5; x := x - 1;
-[AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))]
-```
-
 ### Compilador
 O compilador será responsável pelo processamento de uma lista de ASTs, gerando o código para a máquina de baixo nível implementada na primeira parte do projeto.
 
 Enquanto a AST não estiver vazia, a função `compile` trata a instrução no topo da lista, invocando as funções `compA` ou `compB`. Após o processamento da instrução, a função compile é chamada recursivamente com a lista de instruções restantes.
 
 A função `compA` é responsável por processar as expressões aritméticas(NumExp, VarExp, AddExp, SubExp e MulExp) enquanto a função `compB` é responsável por processar as expressões booleanas(TrueExp, FalseExp, EqArExp, EqBoolExp, LeExp, NotExp e AndExp).
-
-#### Exemplo do resultado da função compile
-```haskell
-x := 5; x := x - 1;
-[Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"]
-```
 
 ## Execução do código
 Para proceder à execução do programa, é necessário ter instalado o [GHC](https://www.haskell.org/ghc/). Após a instalação, basta executar o seguinte comando na pasta src:
