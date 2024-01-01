@@ -10,7 +10,7 @@ newState = Empty
 
 fromList :: [(String, String)] -> State
 fromList [] = newState
-fromList ((var,key):xs) = insert var key (fromList xs)
+fromList ((key,val):xs) = insert key val (fromList xs)
 
 insert :: String -> String -> State -> State
 insert x v Empty = Node x v Empty Empty
