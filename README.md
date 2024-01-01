@@ -54,7 +54,7 @@ Nesta estrutura de dados existem as seguintes operações:
 
 ### Lógica do programa	
 
-A função `run` recebe os argumentos (code, stack, state), enquanto o code não for uma lista vazia, a função `run` executa a instrução que se encontra no topo da lista code e chama recursivamente a função `run` com a lista de instruções restantes.
+A função `run` recebe os argumentos `(code, stack, state)`, enquanto o code não for uma lista vazia, a função `run` executa a instrução que se encontra no topo da lista code e chama recursivamente a função `run` com a lista de instruções restantes.
 
 As instruções suportadas pela máquina são as seguintes:
 
