@@ -1,8 +1,8 @@
 # 2º Projeto PFL
 
 Grupo T08_G02:
-- Adriano Alexandre dos Santos Machado (up202105352) - [TBD]
-- Tomás Alexandre Soeiro Vicente (up202108717) - [TBD]
+- Adriano Alexandre dos Santos Machado (up202105352) - 50%
+- Tomás Alexandre Soeiro Vicente (up202108717) - 50%
 
 ## Descrição do trabalho
 Este projeto encontra-se dividido em duas partes. Num primeiro momento, foi-nos pedido que implementássemos uma máquina de baixo nível que suportasse instruções de cálculo aritmético, de cálculo booleano e de controlo de fluxo. Posteriormente, foi-nos solicitado a implementação de um compilador, com a finalidade de compilar uma linguagem imperativa para a máquina de baixo nível previamente desenvolvida.
@@ -233,29 +233,9 @@ x := 5; x := x - 1;
 ### Compilador
 O compilador será responsável pelo processamento de uma lista de ASTs, gerando o código para a máquina de baixo nível implementada na primeira parte do projeto.
 
-Foram implementadas duas funções auxiliares, `compA` e `compB`, que recebem uma expressão aritmética ou booleana, respetivamente, e retornam o código correspondente.
+Enquanto a AST não estiver vazia, a função `compile` trata a instrução no topo da lista, invocando as funções `compA` ou `compB`. Após o processamento da instrução, a função compile é chamada recursivamente com a lista de instruções restantes.
 
-A função `compile` recebe uma AST e retorna o código correspondente. 
-- No caso de uma atribuição, a função `compile` chama a função `compA` com a expressão aritmética e adiciona o token Store à lista de instruções.
-- No caso de uma sequência de instruções, a função `compile` chama recursivamente a função `compile` com cada uma das instruções.
-- No caso de um if, a função `compile` chama a função `compB` com a expressão booleana e adiciona o token Branch à lista de instruções.
-- No caso de um while, a função `compile` chama a função `compB` com a expressão booleana e adiciona o token Loop à lista de instruções.
-
-No caso da função `compileA` temos os seguintes casos:
-- NumExp: adiciona o token Push à lista de instruções
-- VarExp: adiciona o token Fetch à lista de instruções
-- AddExp: chama recursivamente a função `compileA` com as duas expressões aritméticas e adiciona o token Add à lista de instruções
-- SubExp: chama recursivamente a função `compileA` com as duas expressões aritméticas e adiciona o token Sub à lista de instruções
-- MulExp: chama recursivamente a função `compileA` com as duas expressões aritméticas e adiciona o token Mult à lista de instruções
-
-No caso da função `compileB` temos os seguintes casos:
-- TrueExp: adiciona o token Tru à lista de instruções
-- FalseExp: adiciona o token Fals à lista de instruções
-- EqArExp: chama recursivamente a função `compileA` com as duas expressões aritméticas e adiciona o token Equ à lista de instruções
-- EqBoolExp: chama recursivamente a função `compileB` com as duas expressões booleanas e adiciona o token Equ à lista de instruções
-- LeExp: chama recursivamente a função `compileA` com as duas expressões aritméticas e adiciona o token Le à lista de instruções
-- NotExp: chama recursivamente a função `compileB` com a expressão booleana e adiciona o token Neg à lista de instruções
-- AndExp: chama recursivamente a função `compileB` com as duas expressões booleanas e adiciona o token And à lista de instruções
+A função `compA` é responsável por processar as expressões aritméticas(NumExp, VarExp, AddExp, SubExp e MulExp) enquanto a função `compB` é responsável por processar as expressões booleanas(TrueExp, FalseExp, EqArExp, EqBoolExp, LeExp, NotExp e AndExp).
 
 #### Exemplo do resultado da função compile
 ```haskell
