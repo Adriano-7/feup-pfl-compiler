@@ -180,9 +180,9 @@ lexer input@(c:cs)
     | c == '+' = TokAdd : lexer cs
     | c == '-' = TokSub : lexer cs
     | c == '*' = TokMul : lexer cs
+    | c == ';' = TokSemicolon : lexer cs
     | c == ':' = lexAssign cs
     | c == '=' = lexEqual cs
-    | c == ';' = TokSemicolon : lexer cs
     | c == '<' = lexLessEqual cs
     | otherwise = error $ "Unexpected character: " ++ [c]
 
@@ -224,6 +224,9 @@ lexAnd rest@(c:cs)
     | take 2 rest == "and" = TokAnd : lexer (drop 3 rest)
     | otherwise = error $ "Unexpected character after 'a': " ++ rest
 
+parse :: String -> Program
+parse = buildData . lexer
+
 buildData :: [Token] -> Program
 buildData tokens = 
   case parseStm tokens of
@@ -237,7 +240,7 @@ selectAexpr tokens = case parseAexp tokens of
   _ -> error $ "Unexpected error parsing arithmetic expression: " ++ show tokens
 
 parseAexp :: [Token] -> Maybe (Aexp, [Token])
-parseAexp tokens = case parseSumOrDifOrProdOrIntOrPar tokens of
+parseAexp tokens = case parseSumOrDiffOrProdOrIntOrPar tokens of
     Just (aexp, []) -> Just (aexp, [])
     Just (aexp, TokSemicolon:rest) -> Just (aexp, TokSemicolon:rest)
     Just (_, rest) -> error $ "Unparsed tokens (parseA): " ++ show rest
@@ -311,39 +314,23 @@ parseSeqStm tokens =
       _ -> error $ "Unexpected error parsing tokens in parseSeqStm: " ++ show tokens
 
 --parserA auxiliary functions
-parseSumOrDifOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
-parseSumOrDifOrProdOrIntOrPar tokens =
+parseSumOrDiffOrProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
+parseSumOrDiffOrProdOrIntOrPar tokens =
   case parseProdOrIntOrPar tokens of
     Just (expr1, restTokens1) ->
-      parseSumOrDifOrProdOrIntOrParAux expr1 restTokens1
+      parseSumOrDiff expr1 restTokens1
     _ -> Nothing
 
-parseSumOrDifOrProdOrIntOrParAux :: Aexp -> [Token] -> Maybe (Aexp, [Token])
-parseSumOrDifOrProdOrIntOrParAux expr1 tokens =
+parseSumOrDiff :: Aexp -> [Token] -> Maybe (Aexp, [Token])
+parseSumOrDiff expr1 tokens =
   case tokens of
     TokAdd : restTokens1 -> do
       (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
-      parseSumOrDifOrProdOrIntOrParAux (AddExp expr1 expr2) restTokens2
+      parseSumOrDiff (AddExp expr1 expr2) restTokens2
     TokSub : restTokens1 -> do
       (expr2, restTokens2) <- parseProdOrIntOrPar restTokens1
-      parseSumOrDifOrProdOrIntOrParAux (SubExp expr1 expr2) restTokens2
+      parseSumOrDiff (SubExp expr1 expr2) restTokens2
     _ -> Just (expr1, tokens)
-
-
-parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
-parseIntOrParenExpr (TokNumber n : restTokens)
-  = Just (NumExp n, restTokens)
-
-parseIntOrParenExpr (TokVar var : restTokens)
-  = Just (VarExp var, restTokens)
-
-parseIntOrParenExpr (TokOpenParen : restTokens1)
-  = case parseSumOrDifOrProdOrIntOrPar restTokens1 of
-    Just (expr, TokCloseParen : restTokens2) ->
-      Just (expr, restTokens2)
-    Just _ -> Nothing
-    Nothing -> Nothing
-parseIntOrParenExpr tokens = Nothing
 
 parseProdOrIntOrPar :: [Token] -> Maybe (Aexp, [Token])
 parseProdOrIntOrPar tokens
@@ -354,6 +341,21 @@ parseProdOrIntOrPar tokens
           Just (MulExp expr1 expr2, restTokens2)
         _ -> Nothing
     result -> result
+
+parseIntOrParenExpr :: [Token] -> Maybe (Aexp, [Token])
+parseIntOrParenExpr (TokNumber n : restTokens)
+  = Just (NumExp n, restTokens)
+
+parseIntOrParenExpr (TokVar var : restTokens)
+  = Just (VarExp var, restTokens)
+
+parseIntOrParenExpr (TokOpenParen : restTokens1)
+  = case parseSumOrDiffOrProdOrIntOrPar restTokens1 of
+    Just (expr, TokCloseParen : restTokens2) ->
+      Just (expr, restTokens2)
+    Just _ -> Nothing
+    Nothing -> Nothing
+parseIntOrParenExpr tokens = Nothing
 
 --parserB auxiliary functions
 isAritmeticToken :: Token -> Bool
@@ -446,9 +448,6 @@ compile (AssignStm var a : rest) = compA a ++ [Store var] ++ compile rest
 compile (SeqStm stms : rest)      = compile stms ++ compile rest
 compile (IfStm b s1 s2 : rest) = compB b ++ [Branch (compile [s1]) (compile [s2])] ++ compile rest
 compile (WhileStm b s : rest) = Loop (compB b) (compile [s]) : compile rest
-
-parse :: String -> Program
-parse = buildData . lexer
 
 testParseStm :: IO ()
 testParseStm = do
