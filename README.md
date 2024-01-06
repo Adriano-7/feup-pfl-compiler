@@ -1,18 +1,18 @@
-# 2º Projeto PFL
+# 2nd PFL Project
 
-Grupo T08_G02:
+Group T08_G02:
 - Adriano Alexandre dos Santos Machado (up202105352) - 50%
 - Tomás Alexandre Soeiro Vicente (up202108717) - 50%
 
-## Descrição do trabalho
-Este projeto encontra-se dividido em duas partes. Num primeiro momento, foi-nos pedido que implementássemos uma máquina de baixo nível que suportasse instruções de cálculo aritmético, de cálculo booleano e de controlo de fluxo. Posteriormente, foi-nos solicitado a implementação de um compilador, com a finalidade de compilar uma linguagem imperativa para a máquina de baixo nível previamente desenvolvida.
+## Project Description
+This project is divided into two parts. In the first part, we were asked to implement a low-level machine that supports arithmetic, boolean, and flow control instructions. Later, we were required to implement a compiler to compile an imperative language into the previously developed low-level machine.
 
-## Parte 1: Implementação de uma máquina de baixo nível
-### Estrutura de Dados
+## Part 1: Implementation of a Low-Level Machine
+### Data Structure
 
 **Inst:**
 
-A estrutura de dados Inst representa as instruções da máquina.
+The Inst data structure represents machine instructions.
 
 ```haskell
 data Inst =
@@ -21,63 +21,64 @@ data Inst =
   deriving Show
 ```
 
-- Push n: insere o valor n na stack
-- Add: soma os dois valores no topo da stack e insere o resultado na stack
-- Mult: multiplica os dois valores no topo da stack e insere o resultado no topo da stack
-- Sub: subtrai o valor no topo da stack com o 2º valor e insere o resultado na stack
-- Tru: insere o valor tt na stack
-- Fals: insere o valor ff na stack
-- Equ: verifica se os dois valores no topo da stack são iguais e insere o resultado na stack
-- Le: verifica se valor no topo da stack é menor ou igual que o segundo e insere o resultado na stack
-- And: verifica se os dois valores no topo da stack são iguais a tt e insere o resultado na stack
-- Neg: inverte o valor do booleano que se encontra no topo da stack
-- Fetch var: insere o valor associado à variável var na stack
-- Store var: remove o valor no topo da stack e insere o valor associado à variável var no estado
-- Noop: Instrução sem efeitos
-- Branch c1 c2: se o valor no topo da stack for tt, executa a lista de instruções c1, caso contrário executa a lista de instruções c2
-- Loop c1 c2: executa c1, colocando tt ou ff no topo da stack. Se tt estiver no topo da stack, executa c2 e volta a executar Loop c1 c2, caso contrário, termina a execução
+- Push n: inserts the value n into the stack
+- Add: adds the two values at the top of the stack and inserts the result into the stack
+- Mult: multiplies the two values at the top of the stack and inserts the result into the stack
+- Sub: subtracts the value at the top of the stack from the 2nd value and inserts the result into the stack
+- Tru: inserts the value tt into the stack
+- Fals: inserts the value ff into the stack
+- Equ: checks if the two values at the top of the stack are equal and inserts the result into the stack
+- Le: checks if the value at the top of the stack is less than or equal to the second and inserts the result into the stack
+- And: checks if the two values at the top of the stack are equal to tt and inserts the result into the stack
+- Neg: inverts the boolean value at the top of the stack
+- Fetch var: inserts the value associated with the variable var into the stack
+- Store var: removes the value at the top of the stack and inserts the value associated with the variable var into the state
+- Noop: Instruction with no effects
+- Branch c1 c2: if the value at the top of the stack is tt, execute the list of instructions c1; otherwise, execute the list of instructions c2
+- Loop c1 c2: execute c1, placing tt or ff on the top of the stack. If tt is at the top of the stack, execute c2 and then execute Loop c1 c2 again; otherwise, end execution
 
 **State:**
 
-O estado é representado por uma Binary Search Tree, onde cada nó contém uma chave (que corresponderá ao nome de uma variável), um valor associado e duas sub-árvores. 
+The state is represented by a Binary Search Tree, where each node contains a key (corresponding to the name of a variable), an associated value, and two sub-trees.
 
 ```haskell	
 data State = Empty 
             | Node String String State State
 ```
-Esta estrutura de dados suporta as seguintes operações:
-- newState: cria um novo estado vazio
-- fromList: cria um novo estado a partir de uma lista de pares (variável, valor)
-- insert: insere um novo par (variável, valor) no estado
-- load: retorna o valor associado a uma variável
-- toList: retorna uma lista de pares (variável, valor) a partir de um estado
-- toStr: retorna uma string a partir de um estado
+
+This data structure supports the following operations:
+- newState: creates a new empty state
+- fromList: creates a new state from a list of pairs (variable, value)
+- insert: inserts a new pair (variable, value) into the state
+- load: returns the value associated with a variable
+- toList: returns a list of pairs (variable, value) from a state
+- toStr: returns a string from a state
 
 **Stack:**
 
-A stack é representada por uma lista de strings. 
+The stack is represented by a list of strings.
 
 ```haskell
 newtype Stack = Stk [String] deriving Show
 ```
 
-Nesta estrutura de dados existem as seguintes operações:
-- newStack: cria uma nova stack vazia
-- fromList: cria uma nova stack a partir de uma lista de strings
-- push: insere uma nova string na stack
-- pop: remove a string no topo da stack
-- top: retorna a string no topo da stack
-- isEmpty: verifica se a stack está vazia
+In this data structure, the following operations exist:
+- newStack: creates a new empty stack
+- fromList: creates a new stack from a list of strings
+- push: inserts a new string into the stack
+- pop: removes the string at the top of the stack
+- top: returns the string at the top of the stack
+- isEmpty: checks if the stack is empty
 
-### Lógica do programa	
+### Program Logic
 
-A função `run` recebe os argumentos `(code, stack, state)`, enquanto o code não for uma lista vazia, a função `run` executa a instrução que se encontra no topo da lista code e chama recursivamente a função `run` com a lista de instruções restantes.
+The `run` function takes the arguments `(code, stack, state)`. As long as the code list is not empty, the `run` function executes the instruction at the top of the code list and recursively calls the `run` function with the remaining list of instructions.
 
-## Parte 2: Compilador de uma linguagem imperativa
-Nesta parte do projeto, foi-nos pedido que implementássemos um compilador para uma linguagem imperativa. Para tal, foram necessárias três etapas.
+# Part 2: Compiler for an Imperative Language
 
-<img src="docs/Lexer-Parser-Compiler.png" alt="drawing" width="500"/>
+In this part of the project, we were tasked with implementing a compiler for an imperative language. This process involved three main stages.
 
+![Lexer-Parser-Compiler](docs/Lexer-Parser-Compiler.png)
 
 | String        | x := 5; x := x - 1;                                          |
 |-------------------|---------------------------------------------------------------|
@@ -85,19 +86,16 @@ Nesta parte do projeto, foi-nos pedido que implementássemos um compilador para 
 | Parser Result     | [AssignStm "x" (NumExp 5), AssignStm "x" (SubExp (VarExp "x") (NumExp 1))] |
 | Compile Result    | [Push 5,Store "x",Push 1,Fetch "x",Sub,Store "x"]             |
 
-
-
-### Lexer 
-Responsável por atribuir tokens a cada elemento da linguagem. 
-No nosso caso, a função `lexer` recebe uma string e retorna uma lista de tokens.
+### Lexer
+Responsible for assigning tokens to each element of the language. In our case, the `lexer` function takes a string and returns a list of tokens.
 
 **Tokens:**
-A nossa linguagem suporta os seguintes tokens:
+Our language supports the following tokens:
 
 ```haskell
 data Token = TokAssign          -- ':='
            | TokSemicolon       -- ';'
-           | TokVar String      -- var name
+           | TokVar String      -- variable name
            | TokNumber Integer  -- number
            | TokOpenParen       -- '('
            | TokCloseParen      --')'
@@ -110,7 +108,7 @@ data Token = TokAssign          -- ':='
            | TokWhile           -- 'while'
            | TokDo              -- 'do'
            | TokBoolEqu         -- '='
-           | TokIntEqu           -- '=='
+           | TokIntEqu          -- '=='
            | TokLE              -- '<=' 
            | TokNot             -- 'not'
            | TokAnd             -- 'and'
@@ -119,50 +117,50 @@ data Token = TokAssign          -- ':='
            deriving (Show, Eq)
 ```
 
-O nosso lexer funciona da seguinte forma:
-- **Espaços:** são ignorados
-- **Letras:** a função `lexIdentifier` verifica se a string é uma palavra reservada ou uma variável(começada por uma letra minúscula) e retorna o token correspondente
-- **Números:** a função `lexNumber` retorna o token TokNumber (número)
-- **Operadores de um caracter, parênteses e ponto e vírgula:** a função `lexer` adiciona o token correspondente à lista de tokens 
-- **Operadores com mais do que um caracter:** operadores como o  `:=`, `==`, `=` e o `<=` são tratados pelas funções `lexAssign`, `lexEqual` e `lexLessEqual` respetivamente
+Our lexer works as follows:
+- **Spaces:** Ignored.
+- **Letters:** The `lexIdentifier` function checks if the string is a reserved word or a variable (starting with a lowercase letter) and returns the corresponding token.
+- **Numbers:** The `lexNumber` function returns the TokNumber token (number).
+- **Single-character operators, parentheses, and semicolons:** The `lexer` function adds the corresponding token to the list of tokens.
+- **Operators with more than one character:** Operators like `:=`, `==`, `=`, and `<=` are handled by the `lexAssign`, `lexEqual`, and `lexLessEqual` functions, respectively.
 
-Após cada um dos passos anteriores, a função `lexer` chama-se recursivamente passando a string restante até que a string seja vazia.
+After each of the previous steps, the `lexer` function calls itself recursively with the remaining string until the string is empty.
 
 ### Parser
-Responsável por transformar a lista de tokens numa árvore sintática. É nesta etapa que tratamos a precedência dos operadores. Definimos três estruturas de dados distintas para representar expressões aritméticas, expressões booleanas e instruções.
+Responsible for transforming the list of tokens into a syntax tree. This is where we handle the precedence of operators. We define three different data structures to represent arithmetic expressions, boolean expressions, and statements.
 
 ```haskell
-data Aexp = NumExp Integer      -- Número inteiro  
-          | VarExp String        -- Variável
-          | AddExp Aexp Aexp    -- Soma  
-          | SubExp Aexp Aexp    -- Subtração       
-          | MulExp Aexp Aexp    -- Multiplicação  
+data Aexp = NumExp Integer      -- Integer
+          | VarExp String        -- Variable
+          | AddExp Aexp Aexp    -- Addition  
+          | SubExp Aexp Aexp    -- Subtraction       
+          | MulExp Aexp Aexp    -- Multiplication  
           deriving Show
 
-data Bexp = TrueExp             --Verdadeiro     
-          | FalseExp            --Falso
-          | EqArExp Aexp Aexp   -- Igualdade entre duas expressões aritméticas
-          | EqBoolExp Bexp Bexp -- Igualdade entre duas expressões booleanas   
-          | LeExp Aexp Aexp     -- Menor ou igual entre duas expressões aritméticas    
-          | NotExp Bexp         -- Negação de uma expressão booleana
-          | AndExp Bexp Bexp    -- Conjunção entre duas expressões booleanas
+data Bexp = TrueExp             -- True     
+          | FalseExp            -- False
+          | EqArExp Aexp Aexp   -- Equality between two arithmetic expressions
+          | EqBoolExp Bexp Bexp -- Equality between two boolean expressions   
+          | LeExp Aexp Aexp     -- Less than or equal between two arithmetic expressions    
+          | NotExp Bexp         -- Negation of a boolean expression
+          | AndExp Bexp Bexp    -- Conjunction between two boolean expressions
           deriving Show
 
-data Stm = AssignStm String Aexp -- Atribuição 
-          | SeqStm [Stm]         -- Sequência de instruções
+data Stm = AssignStm String Aexp -- Assignment 
+          | SeqStm [Stm]         -- Sequence of statements
           | IfStm Bexp Stm Stm   
           | WhileStm Bexp Stm    
           deriving Show
 ```
 
-A função `parser` aplica a função `lexer` à string e chama a função `buildData` com a lista de tokens resultante. A função `buildData` recebe essa lista de tokens e retorna uma árvore sintática.
+The `parser` function applies the `lexer` function to the string and calls the `buildData` function with the resulting list of tokens. The `buildData` function takes this list of tokens and returns a syntax tree.
 
 ```haskell 
 parser :: String -> Program
 parser = buildData . lexer
 ```
 
-A função `buildData` chama repetidamente a função `parseStm` até que a lista de tokens restantes seja vazia e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
+The `buildData` function repeatedly calls the `parseStm` function until the list of remaining tokens is empty and checks if the list of tokens has been processed in its entirety. Otherwise, an error is thrown.
 
 ```haskell
 buildData :: [Token] -> Program
@@ -173,9 +171,8 @@ buildData tokens =
     _ -> error $ "Unexpected error parsing statement (buildData): " ++ show tokens
 ```
 
-#### Parser de instruções
-Por sua vez, a função `parseStm` é responsável por processar as instruções, que podem ser de quatro tipos distintos: atribuição, if-then-else, while e sequência de instruções. Dependendo do tipo de instrução a função `parseStm` chama depois a função `parseAexp`, `parseBexp` ou `parseSeqStm` como podemos observar do excerto de código seguinte.
-
+#### Instruction Parser
+The `parseStm` function is responsible for processing statements, which can be of four different types: assignment, if-then-else, while, and sequence of statements. Depending on the type of statement, the `parseStm` function then calls the `parseAexp`, `parseBexp`, or `parseSeqStm` function, as seen in the following code excerpt.
 
 ```haskell
 data Stm = AssignStm String Aexp 
@@ -225,14 +222,13 @@ parseStm tokens = case tokens of
   _ -> error $ "Unexpected error parsing statement: " ++ show tokens
 ```
 
-#### Parser de expressões aritméticas
-No parsing de funções aritméticas usamos um conjunto de funções auxiliares que nos permitem tratar a precedência dos operadores. A precedência dos operadores é tratada da seguinte forma: primeiro são processadas as expressões entre parênteses, depois as multiplicações e por fim as somas e subtrações.
+#### Arithmetic Expressions Parser
+In parsing arithmetic functions, we use a set of auxiliary functions that allow us to handle the precedence of operators. The precedence of operators is handled as follows: first, expressions within parentheses are processed, followed by multiplications, and finally additions and subtractions.
 
-A função `parseAexp` recebe uma lista de tokens, chama a função `parseSumOrDifOrProdOrIntOrPar` e verifica se a lista de tokens foi processada na totalidade. Caso contrário, é lançado um erro.
+The `parseAexp` function takes a list of tokens, calls the `parseSumOrDifOrProdOrIntOrPar` function, and checks if the list of tokens has been processed in its entirety. Otherwise, an error is thrown.
 
-
-#### Parser de expressões booleanas
-A função `parseBexp` recebe uma lista de tokens, chama a função `parseAndOrMore`. Se a lista de tokens tiver sido processada na totalidade, a função `parseBexp` retorna. De igual forma, verifica se o primeiro token não consumido pelo parser é um `TokThen`  ou `TokDo`. Se for, a função retorna com o resto dos tokens. Caso contrário, é lançado um erro.
+#### Boolean Expressions Parser
+The `parseBexp` function takes a list of tokens, calls the `parseAndOrMore` function. If the list of tokens has been fully processed, the `parseBexp` function returns. Similarly, it checks if the first token not consumed by the parser is a `TokThen` or `TokDo`. If it is, the function returns with the remaining tokens. Otherwise, an error is thrown.
 
 ```haskell
 parseBexp :: [Token] -> Maybe (Bexp, [Token])
@@ -244,15 +240,15 @@ parseBexp tokens = case parseAndOrMore tokens of
   _ -> error $ "Unexpected error parsing boolean expression: " ++ show tokens
 ```
 
-### Compilador
-O compilador será responsável pelo processamento de uma lista de ASTs, gerando o código para a máquina de baixo nível implementada na primeira parte do projeto.
+### Compiler
+The compiler is responsible for processing a list of ASTs, generating code for the low-level machine implemented in the first part of the project.
 
-Enquanto a esta lista não estiver vazia, a função `compile` compila a árvore no topo da lista, invocando as funções `compA` ou `compB`. Após o processamento da instrução, a função compile é chamada recursivamente com a lista de instruções restantes.
+While this list is not empty, the `compile` function compiles the tree at the top of the list, invoking the `compA` or `compB` functions. After processing the instruction, the `compile` function is called recursively with the remaining list of instructions.
 
-A função `compA` é responsável por processar as expressões aritméticas(NumExp, VarExp, AddExp, SubExp e MulExp) enquanto a função `compB` é responsável por processar as expressões booleanas(TrueExp, FalseExp, EqArExp, EqBoolExp, LeExp, NotExp e AndExp).
+The `compA` function is responsible for processing arithmetic expressions (NumExp, VarExp, AddExp, SubExp, and MulExp), while the `compB` function is responsible for processing boolean expressions (TrueExp, FalseExp, EqArExp, EqBoolExp, LeExp, NotExp, and AndExp).
 
-## Execução do código
-Para proceder à execução do programa, é necessário ter instalado o [GHC](https://www.haskell.org/ghc/). Após a instalação, basta executar o seguinte comando na pasta src:
+## Code Execution
+To execute the program, it is necessary to have [GHC](https://www.haskell.org/ghc/) installed. After installation, simply execute the following command in the src folder:
 
 ```haskell
 ghci main.hs
